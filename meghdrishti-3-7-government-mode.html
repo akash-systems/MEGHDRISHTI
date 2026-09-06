@@ -1,0 +1,3167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MEGHDRISHTI 3.6 — Environmental Early Warning Mesh</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0D12;
+  --bg-2:#0D1420;
+  --panel:rgba(19,27,37,0.72);
+  --panel-solid:#131B25;
+  --border:rgba(255,255,255,0.07);
+  --border-strong:rgba(255,255,255,0.14);
+  --text:#EAF0F5;
+  --text-dim:#8CA0B3;
+  --text-faint:#5A6B7B;
+  --safe:#3FB68B;
+  --watch:#F2A93B;
+  --warning:#F2790C;
+  --critical:#E23D3D;
+  --accent:#F2A93B;
+  --accent-2:#5B8DEF;
+  --radius-sm:6px;
+  --radius-md:10px;
+  --radius-lg:16px;
+  --mono:'Space Grotesk',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:
+    radial-gradient(1200px 700px at 15% -10%, rgba(91,141,239,0.08), transparent 60%),
+    radial-gradient(900px 600px at 100% 0%, rgba(242,169,59,0.06), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  overflow-x:hidden;
+}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+.glass{
+  background:var(--panel);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+}
+
+/* ===== Top bar ===== */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg, rgba(13,20,32,0.9), rgba(13,20,32,0.6));
+  position:sticky;top:0;z-index:1000;
+  flex-wrap:wrap;gap:10px;
+}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-mark{
+  width:38px;height:38px;border-radius:10px;
+  background:conic-gradient(from 210deg, var(--accent-2), var(--accent), var(--critical), var(--accent-2));
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-weight:700;font-size:15px;color:#0A0D12;
+  box-shadow:0 0 24px rgba(242,169,59,0.25);
+}
+.brand h1{font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:0.3px;}
+.brand p{font-size:11px;color:var(--text-dim);margin-top:1px;}
+.top-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.clock{
+  font-family:var(--mono);font-size:13px;color:var(--text-dim);
+  padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:rgba(255,255,255,0.02);
+}
+.btn{
+  font-family:'Inter',sans-serif;font-size:12.5px;font-weight:600;
+  padding:8px 14px;border-radius:var(--radius-sm);
+  border:1px solid var(--border-strong);
+  background:rgba(255,255,255,0.03);
+  color:var(--text);cursor:pointer;
+  transition:transform .12s ease, background .12s ease, border-color .12s ease;
+  display:flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.btn:hover{background:rgba(255,255,255,0.08);transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn-accent{background:linear-gradient(135deg, var(--accent), #d98d1f);border-color:transparent;color:#1A1204;}
+.btn-accent:hover{filter:brightness(1.08);}
+.btn-danger{border-color:rgba(226,61,61,0.4);color:#ffb3b3;}
+.btn-danger:hover{background:rgba(226,61,61,0.12);}
+.btn-mesh{border-color:rgba(91,141,239,0.4);color:#b9d0ff;}
+.btn.active{background:rgba(242,169,59,0.18);border-color:var(--accent);color:var(--accent);}
+.lang-toggle{display:flex;border:1px solid var(--border-strong);border-radius:var(--radius-sm);overflow:hidden;}
+.lang-toggle button{
+  padding:7px 12px;font-family:var(--mono);font-size:12px;font-weight:700;
+  background:transparent;border:none;color:var(--text-dim);cursor:pointer;
+}
+.lang-toggle button.active{background:var(--accent);color:#1A1204;}
+
+/* ===== Layout ===== */
+.layout{
+  display:grid;
+  grid-template-columns:300px 1fr 320px;
+  gap:14px;
+  padding:14px;
+  align-items:start;
+}
+@media (max-width:1100px){
+  .layout{grid-template-columns:1fr;}
+}
+.col{display:flex;flex-direction:column;gap:14px;}
+.panel{padding:16px;}
+.panel-title{
+  font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:0.6px;
+  color:var(--text-dim);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;
+}
+.panel-title .hint{font-family:'Inter';font-size:10.5px;font-weight:500;color:var(--text-faint);}
+
+/* ===== Hero risk ===== */
+.hero-risk{text-align:center;padding:18px 14px 6px;}
+.hero-risk .score{
+  font-family:var(--mono);font-weight:700;font-size:52px;line-height:1;
+  background:linear-gradient(135deg,#fff,var(--accent));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero-risk .label{font-size:12px;color:var(--text-dim);margin-top:6px;}
+.threat-badge{
+  display:inline-flex;align-items:center;gap:6px;margin-top:10px;
+  padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700;font-family:var(--mono);
+  letter-spacing:0.4px;
+}
+.dot{width:7px;height:7px;border-radius:50%;}
+.tb-safe{background:rgba(63,182,139,0.14);color:var(--safe);}
+.tb-safe .dot{background:var(--safe);box-shadow:0 0 8px var(--safe);}
+.tb-watch{background:rgba(242,169,59,0.14);color:var(--watch);}
+.tb-watch .dot{background:var(--watch);box-shadow:0 0 8px var(--watch);}
+.tb-warning{background:rgba(242,121,12,0.16);color:var(--warning);}
+.tb-warning .dot{background:var(--warning);box-shadow:0 0 8px var(--warning);}
+.tb-critical{background:rgba(226,61,61,0.18);color:var(--critical);animation:pulse-crit 1.4s infinite;}
+.tb-critical .dot{background:var(--critical);box-shadow:0 0 8px var(--critical);}
+@keyframes pulse-crit{0%,100%{opacity:1;}50%{opacity:0.55;}}
+
+/* ===== Node list ===== */
+.node-search{
+  width:100%;padding:8px 10px;border-radius:var(--radius-sm);
+  border:1px solid var(--border-strong);background:rgba(0,0,0,0.2);
+  color:var(--text);font-size:12.5px;margin-bottom:10px;
+}
+.node-item{
+  display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);
+  cursor:pointer;border:1px solid transparent;transition:background .12s;
+}
+.node-item:hover{background:rgba(255,255,255,0.04);}
+.node-item.selected{background:rgba(242,169,59,0.09);border-color:rgba(242,169,59,0.35);}
+.node-item .pip{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.node-item .info{flex:1;min-width:0;}
+.node-item .info .name{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.node-item .info .meta{font-size:10.5px;color:var(--text-faint);}
+.node-item .risk{font-family:var(--mono);font-size:13px;font-weight:700;}
+
+/* ===== Sliders ===== */
+.slider-row{margin-bottom:12px;}
+.slider-row label{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-dim);margin-bottom:5px;}
+.slider-row label span{color:var(--text);font-family:var(--mono);}
+input[type=range]{
+  width:100%;-webkit-appearance:none;height:4px;border-radius:2px;
+  background:rgba(255,255,255,0.1);outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--accent);cursor:pointer;box-shadow:0 0 8px rgba(242,169,59,0.5);
+}
+.speed-row{display:flex;gap:6px;margin-top:6px;}
+.speed-row button{flex:1;padding:6px;font-size:11px;font-family:var(--mono);}
+
+/* ===== Map ===== */
+#mapWrap{perspective:1400px;overflow:hidden;border-radius:var(--radius-lg);}
+#map{height:460px;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border);cursor:grab;transition:transform .5s ease, box-shadow .5s ease;transform-origin:50% 20%;}
+#map:active{cursor:grabbing;}
+#mapWrap.tilt-3d #map{transform:rotateX(38deg) scale(1.18);box-shadow:0 40px 60px -20px rgba(0,0,0,0.65);}
+#tilt3dToggle.active{background:rgba(91,141,239,0.18);border-color:var(--accent-2);color:#b9d0ff;}
+.leaflet-control-zoom{border:1px solid var(--border-strong) !important;box-shadow:0 4px 14px rgba(0,0,0,0.4) !important;}
+.leaflet-control-zoom a{
+  background:var(--panel-solid) !important;color:var(--text) !important;
+  width:32px !important;height:32px !important;line-height:32px !important;
+  font-size:18px !important;font-weight:700 !important;
+}
+.leaflet-control-zoom a:hover{background:rgba(255,255,255,0.12) !important;color:var(--accent) !important;}
+.leaflet-control-attribution{background:rgba(13,20,32,0.75) !important;color:var(--text-faint) !important;font-size:9.5px !important;}
+.leaflet-control-attribution a{color:var(--text-dim) !important;}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.9);}
+.place-info{
+  position:absolute;left:14px;right:14px;bottom:14px;z-index:800;
+  background:var(--panel-solid);border:1px solid var(--border-strong);border-radius:var(--radius-md);
+  padding:14px 16px;box-shadow:0 12px 30px rgba(0,0,0,0.5);max-height:280px;overflow-y:auto;
+}
+.place-info.hidden{display:none;}
+.pi-close{position:absolute;top:8px;right:10px;cursor:pointer;color:var(--text-dim);font-size:14px;}
+.pi-close:hover{color:var(--text);}
+.pi-loading{font-family:var(--mono);font-size:12px;color:var(--text-dim);}
+.pi-title{font-family:var(--mono);font-weight:700;font-size:14px;margin-bottom:2px;color:var(--text);}
+.pi-sub{font-size:11px;color:var(--text-dim);margin-bottom:10px;}
+.pi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:10px;}
+.pi-stat{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
+.pi-stat .k{font-size:9.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.4px;}
+.pi-stat .v{font-family:var(--mono);font-size:14px;font-weight:700;margin-top:2px;}
+.pi-risk-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.pi-risk-chip{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:999px;font-family:var(--mono);}
+.pi-risk-chip.rk-low{background:rgba(63,182,139,0.16);color:var(--safe);}
+.pi-risk-chip.rk-mid{background:rgba(242,169,59,0.16);color:var(--watch);}
+.pi-risk-chip.rk-high{background:rgba(226,61,61,0.16);color:var(--critical);}
+.pi-note{font-size:11px;color:var(--text-dim);line-height:1.5;}
+.hr-row{display:flex;gap:6px;margin-bottom:10px;}
+.hr-card{flex:1;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:6px 4px;text-align:center;}
+.hr-card .t{font-size:9.5px;color:var(--text-faint);}
+.hr-card .v{font-family:var(--mono);font-size:13px;font-weight:700;margin-top:2px;}
+.hr-card .p{font-size:9.5px;color:var(--accent-2);margin-top:1px;}
+.geo-nearby{font-size:11px;color:var(--watch);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border-strong);}
+.map-panel{padding:0;overflow:hidden;position:relative;}
+.map-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 16px;border-bottom:1px solid var(--border);
+}
+.map-toggles{display:flex;gap:6px;}
+.map-toggles button{padding:6px 10px;font-size:11px;}
+.leaflet-popup-content-wrapper{background:#131B25;color:var(--text);border-radius:10px;}
+.leaflet-popup-tip{background:#131B25;}
+.leaflet-popup-content{font-family:'Inter';font-size:12.5px;}
+
+/* ===== gauges ===== */
+.gauge-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.gauge{text-align:center;}
+.gauge svg{width:100%;max-width:110px;}
+.gauge .val{font-family:var(--mono);font-weight:700;font-size:16px;margin-top:-38px;position:relative;}
+.gauge .lbl{font-size:10px;color:var(--text-dim);margin-top:6px;}
+
+/* ===== status grid ===== */
+.status-grid-wrap{overflow-x:auto;}
+table.status-grid{width:100%;border-collapse:collapse;font-size:12px;min-width:760px;}
+table.status-grid th{
+  text-align:left;font-family:var(--mono);font-size:10px;color:var(--text-faint);
+  padding:6px 10px;border-bottom:1px solid var(--border);letter-spacing:0.4px;
+}
+table.status-grid td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);}
+table.status-grid tr:hover td{background:rgba(255,255,255,0.02);}
+.badge{padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;font-family:var(--mono);}
+.batt{display:flex;align-items:center;gap:6px;}
+.batt-bar{width:44px;height:7px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;}
+.batt-fill{height:100%;border-radius:4px;}
+
+/* ===== log ===== */
+.log-wrap{max-height:220px;overflow-y:auto;font-family:var(--mono);font-size:11.5px;}
+.log-line{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.03);}
+.log-time{color:var(--text-faint);flex-shrink:0;}
+.log-lvl{flex-shrink:0;font-weight:700;width:60px;}
+.lvl-CRITICAL{color:var(--critical);}
+.lvl-WARN{color:var(--watch);}
+.lvl-INFO{color:var(--accent-2);}
+.log-filters{display:flex;gap:6px;margin-bottom:10px;}
+.log-filters button{padding:5px 10px;font-size:10.5px;}
+
+/* toasts */
+#toasts{position:fixed;bottom:18px;right:18px;z-index:3000;display:flex;flex-direction:column;gap:8px;max-width:320px;}
+.toast{
+  padding:12px 14px;border-radius:var(--radius-md);font-size:12.5px;
+  background:var(--panel-solid);border:1px solid var(--border-strong);
+  box-shadow:0 8px 30px rgba(0,0,0,0.4);
+  animation:toast-in .25s ease;display:flex;gap:8px;align-items:flex-start;
+}
+@keyframes toast-in{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+.toast.crit{border-color:rgba(226,61,61,0.5);}
+
+/* offline banner */
+.offline-banner{
+  background:repeating-linear-gradient(45deg, rgba(242,169,59,0.12), rgba(242,169,59,0.12) 10px, rgba(242,169,59,0.05) 10px, rgba(242,169,59,0.05) 20px);
+  border:1px dashed rgba(242,169,59,0.5);color:var(--watch);
+  padding:8px 12px;border-radius:var(--radius-sm);font-size:11.5px;margin-top:10px;text-align:center;
+}
+.section-sub{font-size:11px;color:var(--text-faint);margin:10px 0 6px;font-family:var(--mono);letter-spacing:0.3px;}
+.small-btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.evac-panel{font-size:12.5px;line-height:1.6;color:var(--text-dim);}
+.evac-panel b{color:var(--text);}
+.rescue-team{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;}
+.rescue-team .status{font-family:var(--mono);font-size:10.5px;padding:3px 8px;border-radius:6px;}
+.footer-note{text-align:center;padding:16px;color:var(--text-faint);font-size:11px;}
+
+/* ===== Hazard Outlook (TN districts + India states) ===== */
+.outlook-panel{padding:16px;margin:0 14px 14px 14px;}
+.outlook-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.outlook-head h2{font-family:var(--mono);font-size:14px;letter-spacing:0.4px;}
+.outlook-head p{font-size:11px;color:var(--text-dim);margin-top:2px;}
+.outlook-controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.outlook-controls input, .outlook-controls select{
+  padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);
+  background:rgba(0,0,0,0.2);color:var(--text);font-size:12px;font-family:'Inter',sans-serif;
+}
+.outlook-controls input{flex:1;min-width:160px;}
+.outlook-tabs{display:flex;gap:6px;flex-wrap:wrap;}
+.outlook-tabs button{
+  font-family:var(--mono);font-size:11px;font-weight:700;padding:6px 12px;border-radius:999px;
+  border:1px solid var(--border-strong);background:rgba(255,255,255,0.02);color:var(--text-dim);cursor:pointer;
+}
+.outlook-tabs button.active{background:var(--accent);color:#1A1204;border-color:transparent;}
+.outlook-month-banner{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);
+  background:rgba(91,141,239,0.08);border:1px solid rgba(91,141,239,0.25);margin-bottom:12px;
+  font-size:11.5px;color:var(--text-dim);
+}
+.outlook-month-banner b{color:var(--text);font-family:var(--mono);}
+.outlook-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;max-height:640px;overflow-y:auto;padding-right:4px;}
+.hazard-card{
+  border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;
+  background:rgba(255,255,255,0.02);cursor:pointer;transition:border-color .12s, background .12s;
+}
+.hazard-card:hover{background:rgba(255,255,255,0.05);}
+.hazard-card.expanded{border-color:var(--accent);background:rgba(242,169,59,0.06);}
+.hazard-card .hc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.hazard-card .hc-name{font-size:13px;font-weight:700;}
+.hazard-card .hc-state{font-size:10.5px;color:var(--text-faint);margin-top:1px;}
+.hazard-tag{
+  font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.3px;
+  padding:3px 7px;border-radius:5px;white-space:nowrap;
+}
+.htag-landslide{background:rgba(226,61,61,0.16);color:#ff8a8a;}
+.htag-flood{background:rgba(91,141,239,0.18);color:#a9c4ff;}
+.htag-forestfire{background:rgba(242,121,12,0.18);color:#ffb066;}
+.htag-cyclone{background:rgba(91,141,239,0.18);color:#8ce0ff;}
+.htag-gasleak{background:rgba(226,61,61,0.18);color:#ffb3b3;}
+.htag-pollution{background:rgba(140,140,140,0.22);color:#d8d8d8;}
+.hc-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+.hc-note{font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.45;}
+.hc-season-row{display:flex;align-items:center;justify-content:space-between;margin-top:9px;padding-top:9px;border-top:1px solid var(--border);}
+.season-badge{font-family:var(--mono);font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;display:flex;align-items:center;gap:5px;}
+.season-active{background:rgba(226,61,61,0.16);color:var(--critical);}
+.season-watch{background:rgba(242,169,59,0.16);color:var(--watch);}
+.season-off{background:rgba(63,182,139,0.14);color:var(--safe);}
+.hc-safety{display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border-strong);}
+.hazard-card.expanded .hc-safety{display:block;}
+.hc-safety ul{margin:6px 0 0 16px;font-size:11px;color:var(--text-dim);line-height:1.6;}
+.hc-safety .hc-safety-title{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--accent);letter-spacing:0.4px;}
+.outlook-empty{text-align:center;padding:30px 10px;color:var(--text-faint);font-size:12px;grid-column:1/-1;}
+canvas{max-width:100%;}
+.chart-box{height:150px;margin-top:8px;}
+.node-type-tag{font-size:9.5px;padding:2px 6px;border-radius:5px;background:rgba(255,255,255,0.06);color:var(--text-faint);font-family:var(--mono);}
+[data-i18n]{transition:opacity .15s;}
+.mesh-stat-row{display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.03);}
+.mesh-stat-row b{font-family:var(--mono);}
+
+/* ===== Boot splash ===== */
+#bootSplash{
+  position:fixed;inset:0;z-index:9999;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  transition:opacity .6s ease, visibility .6s;cursor:pointer;
+}
+#bootSplash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+.boot-inner{text-align:center;max-width:360px;padding:20px;}
+.boot-logo{
+  width:76px;height:76px;border-radius:20px;margin:0 auto 18px;
+  background:conic-gradient(from 210deg, var(--accent-2), var(--accent), var(--critical), var(--accent-2));
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:26px;color:#0A0D12;
+  animation:boot-spin 3s linear infinite;box-shadow:0 0 50px rgba(242,169,59,0.35);
+}
+@keyframes boot-spin{from{filter:hue-rotate(0deg);}to{filter:hue-rotate(360deg);}}
+.boot-title{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:1px;margin-bottom:4px;}
+.boot-sub{font-size:11.5px;color:var(--text-dim);margin-bottom:18px;}
+.boot-bar{width:100%;height:4px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin-bottom:14px;}
+.boot-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent-2),var(--accent));animation:boot-fill 2.4s ease forwards;}
+@keyframes boot-fill{to{width:100%;}}
+.boot-log{font-family:var(--mono);font-size:10.5px;color:var(--text-faint);text-align:left;min-height:90px;line-height:1.7;}
+.boot-log div{opacity:0;animation:boot-line-in .3s ease forwards;}
+@keyframes boot-line-in{to{opacity:1;}}
+.boot-skip{margin-top:16px;font-size:10.5px;color:var(--text-faint);}
+
+/* ===== Ticker ===== */
+.ticker-wrap{
+  background:rgba(0,0,0,0.35);border-bottom:1px solid var(--border);
+  overflow:hidden;white-space:nowrap;position:sticky;top:66px;z-index:900;
+}
+.ticker-track{display:inline-block;padding-left:100%;animation:ticker-scroll 38s linear infinite;font-family:var(--mono);font-size:11.5px;color:var(--text-dim);padding-top:6px;padding-bottom:6px;}
+.ticker-track span{margin-right:36px;}
+@keyframes ticker-scroll{from{transform:translateX(0);}to{transform:translateX(-100%);}}
+
+/* ===== AI forecast & reasoning ===== */
+.forecast-note{font-size:11.5px;color:var(--text-dim);line-height:1.6;margin-top:10px;padding:10px 12px;background:rgba(91,141,239,0.06);border:1px solid rgba(91,141,239,0.18);border-radius:var(--radius-sm);}
+.forecast-note b{color:var(--accent-2);}
+.reason-item{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+.reason-item .row{display:flex;justify-content:space-between;font-size:12px;}
+.reason-item .row b{font-family:var(--mono);}
+.reason-bar{height:6px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;}
+.reason-bar-fill{height:100%;border-radius:4px;}
+
+/* ===== Impact panel ===== */
+.impact-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.impact-stat{text-align:center;padding:12px 6px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.02);border:1px solid var(--border);}
+.impact-stat .num{font-family:var(--mono);font-weight:700;font-size:19px;color:var(--accent);}
+.impact-stat .lbl{font-size:10px;color:var(--text-dim);margin-top:3px;line-height:1.3;}
+.impact-note{font-size:10.5px;color:var(--text-faint);margin-top:10px;line-height:1.5;}
+
+/* ===== 1. AI Command Center ===== */
+.ai-command-center{margin:0 14px 0;border:1px solid rgba(242,169,59,0.28);background:linear-gradient(135deg, rgba(242,169,59,0.07), rgba(19,27,37,0.85));}
+.acc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:4px;}
+.acc-stat{padding:10px 12px;border-radius:var(--radius-sm);background:rgba(0,0,0,0.18);border:1px solid var(--border);}
+.acc-stat .k{font-size:9.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;}
+.acc-stat .v{font-family:var(--mono);font-weight:700;font-size:15px;margin-top:3px;line-height:1.3;}
+.acc-stat.acc-risk .v{font-size:24px;}
+.acc-flow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border-strong);font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+.acc-flow .node{padding:5px 10px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid var(--border);white-space:nowrap;}
+.acc-flow .arrow{color:var(--text-faint);}
+
+/* ===== 2. Multi-sensor fusion ===== */
+.fusion-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+.fusion-table th{text-align:left;font-family:var(--mono);font-size:9.5px;color:var(--text-faint);padding:4px 6px;letter-spacing:0.4px;}
+.fusion-table td{padding:6px 6px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+.fusion-bar-mini{height:5px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden;margin-top:4px;width:70px;}
+.fusion-bar-fill{height:100%;border-radius:3px;}
+.fusion-confidence-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border-strong);font-size:12px;}
+.fusion-confidence-row b{font-family:var(--mono);font-size:16px;color:var(--accent-2);}
+
+/* ===== 3. What-if simulator ===== */
+.whatif-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.whatif-grid button{font-size:11px;padding:8px 6px;text-align:center;justify-content:center;}
+.whatif-result{font-size:11.5px;padding:10px 12px;border-radius:var(--radius-sm);background:rgba(91,141,239,0.06);border:1px solid rgba(91,141,239,0.18);margin-top:10px;line-height:1.6;color:var(--text-dim);}
+.whatif-result b{color:var(--text);}
+.whatif-arrow{font-family:var(--mono);font-weight:700;}
+
+/* ===== 4. Evacuation zone map ===== */
+.zone-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.zone-chip{font-size:10px;font-weight:700;font-family:var(--mono);padding:4px 9px;border-radius:999px;opacity:0.35;transition:opacity .2s;}
+.zone-chip.active{opacity:1;}
+.zone-chip.zc-safe{background:rgba(63,182,139,0.16);color:var(--safe);}
+.zone-chip.zc-ready{background:rgba(242,169,59,0.16);color:var(--watch);}
+.zone-chip.zc-immediate{background:rgba(226,61,61,0.18);color:var(--critical);}
+.route-flow{font-family:var(--mono);font-size:10.5px;line-height:2.1;color:var(--text-dim);text-align:center;padding:8px 4px;background:rgba(0,0,0,0.15);border-radius:var(--radius-sm);margin-bottom:10px;}
+.route-flow b{color:var(--text);}
+
+/* ===== 5. False alarm shield ===== */
+.false-alarm-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 2px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.fa-check{color:var(--safe);font-family:var(--mono);}
+.fa-cross{color:var(--text-faint);font-family:var(--mono);}
+.fa-verdict{margin-top:10px;padding:10px 12px;border-radius:var(--radius-sm);text-align:center;font-family:var(--mono);font-size:12.5px;font-weight:700;}
+.fa-verdict.validated{background:rgba(63,182,139,0.14);color:var(--safe);border:1px solid rgba(63,182,139,0.3);}
+.fa-verdict.unvalidated{background:rgba(255,255,255,0.03);color:var(--text-dim);border:1px solid var(--border);}
+
+/* ===== 6. AI rescue priority ===== */
+.priority-item{padding:10px 10px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.02);border:1px solid var(--border);margin-bottom:8px;}
+.priority-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.priority-badge{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;}
+.priority-badge.p1{background:rgba(226,61,61,0.18);color:var(--critical);}
+.priority-badge.p2{background:rgba(242,121,12,0.16);color:var(--warning);}
+.priority-badge.p3{background:rgba(242,169,59,0.16);color:var(--watch);}
+.priority-meta{font-size:10.5px;color:var(--text-dim);display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
+.priority-team{font-size:10.5px;color:var(--accent-2);margin-top:5px;}
+
+/* ===== 7. Incident timeline ===== */
+.timeline-wrap{position:relative;padding-left:18px;}
+.timeline-wrap::before{content:'';position:absolute;left:5px;top:4px;bottom:4px;width:1px;background:var(--border-strong);}
+.timeline-item{position:relative;padding-bottom:14px;font-size:11.5px;}
+.timeline-item::before{content:'';position:absolute;left:-18px;top:3px;width:9px;height:9px;border-radius:50%;background:var(--accent-2);border:2px solid var(--bg);}
+.timeline-item.tl-crit::before{background:var(--critical);}
+.timeline-item.tl-warn::before{background:var(--watch);}
+.timeline-item .tl-time{font-family:var(--mono);color:var(--text-faint);font-size:10px;}
+.timeline-item .tl-msg{color:var(--text-dim);margin-top:1px;}
+.timeline-empty{font-size:11.5px;color:var(--text-faint);}
+
+/* ===== 8. Edge-offline intelligence ===== */
+.edge-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.edge-status-item{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;padding:7px 10px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid var(--border);}
+.edge-status-item .es-ok{color:var(--safe);font-weight:700;}
+.edge-status-item .es-bad{color:var(--critical);font-weight:700;}
+/* ================= v3.6 ADDITIONS: view switcher, badges, emergency mode, map FX ================= */
+.view-switch{display:flex;background:rgba(255,255,255,0.04);border:1px solid var(--border-strong);border-radius:999px;padding:3px;gap:2px;}
+.view-switch button{background:transparent;border:0;color:var(--text-dim);font-family:var(--mono);font-size:11px;font-weight:600;
+  padding:6px 13px;border-radius:999px;cursor:pointer;transition:.22s;letter-spacing:.3px;white-space:nowrap;}
+.view-switch button.active{background:linear-gradient(135deg,rgba(91,141,239,.9),rgba(91,141,239,.55));color:#08101d;box-shadow:0 4px 16px rgba(91,141,239,.35);}
+.view-switch button:hover{color:var(--text);}
+body.mode-command .analyst-only{display:none !important;}
+.mode-pill{font-family:var(--mono);font-size:10px;padding:5px 10px;border-radius:999px;letter-spacing:.5px;
+  border:1px solid var(--border-strong);background:rgba(255,255,255,.04);color:var(--text-dim);}
+
+/* refined glass + status badges */
+.panel.glass{box-shadow:0 10px 34px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.045);}
+.panel.glass:hover{border-color:var(--border-strong);}
+.status-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;font-weight:700;
+  padding:4px 10px;border-radius:999px;letter-spacing:.6px;border:1px solid transparent;backdrop-filter:blur(6px);}
+.status-badge .bdot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
+.sb-safe{color:var(--safe);background:rgba(63,182,139,.10);border-color:rgba(63,182,139,.35);}
+.sb-watch{color:var(--watch);background:rgba(242,169,59,.10);border-color:rgba(242,169,59,.35);}
+.sb-warning{color:var(--warning);background:rgba(242,121,12,.12);border-color:rgba(242,121,12,.38);}
+.sb-critical{color:var(--critical);background:rgba(226,61,61,.14);border-color:rgba(226,61,61,.45);animation:sbPulse 1.4s infinite;}
+@keyframes sbPulse{0%,100%{box-shadow:0 0 0 0 rgba(226,61,61,.45);}50%{box-shadow:0 0 0 7px rgba(226,61,61,0);}}
+
+/* animated leaflet markers + risk zones */
+.mdx-pulse{position:relative;width:18px;height:18px;pointer-events:none;}
+.mdx-pulse i{position:absolute;inset:0;border-radius:50%;background:currentColor;opacity:.85;transform:scale(.42);}
+.mdx-pulse b{position:absolute;inset:0;border-radius:50%;border:2px solid currentColor;opacity:.7;animation:mdxRing 1.6s infinite ease-out;}
+.mdx-pulse.calm b{animation:none;opacity:.22;}
+.mdx-pulse.fast b{animation-duration:.85s;}
+@keyframes mdxRing{0%{transform:scale(.4);opacity:.75;}100%{transform:scale(2.3);opacity:0;}}
+.mdx-riskzone{transition:opacity .4s;}
+
+/* ============ EMERGENCY MOBILE MODE (OLED) ============ */
+.emg-btn.armed{background:linear-gradient(135deg,#E23D3D,#8f1d1d) !important;color:#fff !important;border-color:#E23D3D !important;
+  animation:sbPulse 1.6s infinite;}
+#emergencyOverlay{position:fixed;inset:0;z-index:5000;background:#000;color:#fff;display:none;flex-direction:column;
+  font-family:'Inter',sans-serif;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+#emergencyOverlay.open{display:flex;animation:emgIn .28s ease-out;}
+@keyframes emgIn{from{opacity:0;transform:scale(1.03);}to{opacity:1;transform:none;}}
+.emg-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid #1b1b1b;
+  position:sticky;top:0;background:#000;z-index:3;}
+.emg-title{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.6px;}
+.emg-title small{display:block;font-size:10px;color:#7d7d7d;font-weight:500;letter-spacing:.4px;margin-top:2px;}
+.emg-x{background:#141414;border:1px solid #262626;color:#fff;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;}
+.emg-body{padding:16px;display:flex;flex-direction:column;gap:14px;max-width:640px;width:100%;margin:0 auto;padding-bottom:40px;}
+.emg-card{background:#0a0a0a;border:1px solid #1e1e1e;border-radius:16px;padding:14px;}
+.emg-risk{text-align:center;padding:20px 14px;border-radius:20px;background:#080808;border:1px solid #1e1e1e;}
+.emg-risk .num{font-family:var(--mono);font-size:64px;font-weight:700;line-height:1;}
+.emg-risk .lbl{font-size:11px;color:#8a8a8a;letter-spacing:1px;margin-top:8px;text-transform:uppercase;}
+.emg-risk .loc{font-size:16px;font-weight:600;margin-top:10px;}
+.emg-selects{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.emg-selects select{width:100%;background:#0d0d0d;color:#fff;border:1px solid #262626;border-radius:12px;padding:11px 10px;font-size:13px;}
+.emg-sos{width:100%;border:0;border-radius:20px;padding:24px;background:linear-gradient(135deg,#E23D3D,#7d1414);color:#fff;
+  font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:3px;cursor:pointer;box-shadow:0 0 40px rgba(226,61,61,.35);}
+.emg-sos:active{transform:scale(.98);}
+.emg-sos.active{animation:sbPulse 1s infinite;}
+.emg-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.emg-act{background:#101010;border:1px solid #242424;color:#fff;border-radius:14px;padding:14px 10px;font-size:13px;font-weight:600;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;text-decoration:none;transition:.2s;}
+.emg-act:active{background:#1c1c1c;}
+.emg-act span.ico{font-size:20px;}
+.emg-act.voice{border-color:#2f4f8f;}
+.emg-act.danger{border-color:#5a1c1c;}
+.emg-h{font-family:var(--mono);font-size:11px;letter-spacing:1px;color:#7d7d7d;margin-bottom:9px;text-transform:uppercase;}
+.emg-step{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #161616;font-size:13.5px;line-height:1.45;}
+.emg-step:last-child{border-bottom:0;}
+.emg-step i{font-style:normal;color:#F2A93B;font-family:var(--mono);font-weight:700;}
+.emg-route{font-size:13px;color:#cfcfcf;line-height:1.6;}
+.emg-sos-log{font-family:var(--mono);font-size:11px;color:#6fdca7;margin-top:10px;white-space:pre-line;}
+@media(max-width:560px){.emg-selects{grid-template-columns:1fr;}.emg-risk .num{font-size:52px;}}
+
+/* ================= v3.7 ADDITIONS: Government Mode ================= */
+.btn-gov.active{background:linear-gradient(135deg,var(--accent-2),#2f5fc9);border-color:transparent;color:#08101d;}
+.gov-section{display:none;}
+.gov-section.open{display:block;}
+.gov-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+.gov-tabs button{padding:8px 14px;font-size:11px;border-radius:999px;border:1px solid var(--border-strong);
+  background:rgba(255,255,255,0.03);color:var(--text-dim);font-family:var(--mono);cursor:pointer;white-space:nowrap;transition:.15s;}
+.gov-tabs button:hover{color:var(--text);border-color:var(--border-strong);background:rgba(255,255,255,0.06);}
+.gov-tabs button.active{background:linear-gradient(135deg,var(--accent),#d98d1f);color:#1A1204;border-color:transparent;}
+.gov-pane{display:none;}
+.gov-pane.active{display:block;}
+.gov-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px;}
+.gov-kpi{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center;}
+.gov-kpi .v{font-family:var(--mono);font-weight:700;font-size:19px;}
+.gov-kpi .k{font-size:9.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px;}
+.gov-badge-live{font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:999px;
+  background:rgba(63,182,139,.14);color:var(--safe);border:1px solid rgba(63,182,139,.35);}
+.gov-badge-sim{font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:999px;
+  background:rgba(242,169,59,.14);color:var(--watch);border:1px solid rgba(242,169,59,.35);}
+.gov-dept-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+.gov-dept-card{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;
+  padding:14px;cursor:pointer;transition:.15s;text-align:center;}
+.gov-dept-card:hover{border-color:var(--border-strong);background:rgba(255,255,255,0.05);}
+.gov-dept-card.active{border-color:var(--accent);background:rgba(242,169,59,0.08);}
+.gov-dept-card .ico{font-size:22px;}
+.gov-dept-card .name{font-family:var(--mono);font-size:11px;font-weight:700;margin-top:6px;}
+.gov-dept-card .sub{font-size:10px;color:var(--text-faint);margin-top:3px;}
+.gov-flow{font-family:var(--mono);font-size:12px;color:var(--text-dim);line-height:2.3;text-align:center;}
+.gov-flow b{color:var(--accent-2);}
+.gov-form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.gov-form-row select,.gov-form-row input{padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);
+  background:rgba(0,0,0,0.2);color:var(--text);font-size:12px;font-family:'Inter',sans-serif;flex:1;min-width:140px;}
+.gov-channel-row{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px;}
+.gov-channel-chip{font-size:10.5px;padding:6px 11px;border-radius:999px;border:1px solid var(--border-strong);
+  background:rgba(255,255,255,0.03);color:var(--text-dim);cursor:pointer;user-select:none;}
+.gov-channel-chip.active{background:rgba(91,141,239,0.16);color:#b9d0ff;border-color:rgba(91,141,239,0.4);}
+.gov-health-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;
+  background:rgba(226,61,61,0.06);border:1px solid rgba(226,61,61,0.25);margin-bottom:7px;font-size:11.5px;flex-wrap:wrap;}
+.gov-health-ok{text-align:center;padding:16px;color:var(--safe);font-size:12.5px;}
+.gov-audit-role{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+.gov-audit-role select{padding:7px 10px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);
+  background:rgba(0,0,0,0.2);color:var(--text);font-size:12px;font-family:'Inter',sans-serif;}
+
+</style>
+</head>
+<body>
+
+<div id="bootSplash">
+  <div class="boot-inner">
+    <div class="boot-logo">MD</div>
+    <div class="boot-title">MEGHDRISHTI</div>
+    <div class="boot-sub">Environmental Early Warning Mesh — Booting network...</div>
+    <div class="boot-bar"><div class="boot-fill"></div></div>
+    <div class="boot-log" id="bootLog"></div>
+    <div class="boot-skip">tap anywhere to skip</div>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">MD</div>
+    <div>
+      <h1 data-i18n="brandName">MEGHDRISHTI</h1>
+      <p data-i18n="brandTag">Environmental Early Warning Mesh — भारत</p>
+    </div>
+  </div>
+  <div class="top-controls">
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="lang-toggle">
+      <button id="langEN" class="active">EN</button>
+      <button id="langTA">தமிழ்</button>
+    </div>
+    <button class="btn" id="sirenToggle">🔊 <span data-i18n="siren">Siren</span></button>
+    <button class="btn btn-mesh" id="hwFeedToggle">📡 <span data-i18n="liveFeed">Live Feed: ON</span></button>
+    <div class="view-switch" id="viewSwitch">
+      <button data-view="analyst" class="active">📊 Analyst / Simulation</button>
+      <button data-view="command">🛰 Command Center</button>
+    </div>
+    <span class="mode-pill" id="viewModePill">ANALYST / SIMULATION VIEW</span>
+    <button class="btn btn-danger emg-btn" id="emergencyBtn">🚨 <span>Emergency Mode</span></button>
+    <button class="btn btn-gov" id="govModeBtn">🏛️ <span>Government Mode</span></button>
+    <button class="btn btn-accent" id="demoModeBtn">▶ <span data-i18n="demoMode">Judge Demo Mode</span></button>
+  </div>
+</div>
+
+<div class="ticker-wrap"><div class="ticker-track" id="tickerTrack">Loading national risk feed…</div></div>
+
+<div class="panel glass ai-command-center" style="margin:14px 14px 0;padding:16px 18px;">
+  <div class="panel-title">🧠 MEGHDRISHTI AI COMMAND CENTER<span class="hint" id="accNodeLabel">—</span></div>
+  <div class="acc-grid" id="accGrid"></div>
+  <div class="acc-flow" id="accFlow"></div>
+</div>
+
+<div class="layout">
+  <!-- LEFT COLUMN -->
+  <div class="col">
+    <div class="panel glass hero-risk">
+      <div class="panel-title" style="justify-content:center;" data-i18n="networkRisk">NETWORK RISK SCORE</div>
+      <div class="score" id="networkRiskScore">--</div>
+      <div class="label" id="selectedNodeName" data-i18n="allNodesAvg">Average across all nodes</div>
+      <div class="threat-badge tb-safe" id="networkThreatBadge"><span class="dot"></span><span id="networkThreatLabel">SAFE</span></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title">📍 MY LOCATION — LIVE + 3H PREDICTIVE WARNING</div>
+      <button class="btn btn-mesh" id="myLocationBtn" style="width:100%;justify-content:center;">📡 Check My Area Now</button>
+      <div id="myLocationBody" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title"><span data-i18n="nodeList">SENSOR NODES</span><span class="hint" id="nodeCount">8 active</span></div>
+      <input class="node-search" id="nodeSearch" placeholder="Filter nodes by state / hazard...">
+      <div id="nodeListWrap" style="max-height:420px;overflow-y:auto;padding-right:4px;"></div>
+      <div style="font-size:9.5px;color:var(--text-faint);margin-top:6px;">Sorted highest-hazard-risk first — Tamil Nadu districts, then all-India hotspots</div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title" data-i18n="controlPanel">SIMULATION & THRESHOLDS</div>
+      <div class="slider-row">
+        <label><span data-i18n="simSpeed">Simulation speed</span> <span id="speedVal">1x</span></label>
+        <input type="range" id="speedSlider" min="1" max="10" value="1" step="1">
+      </div>
+      <div class="slider-row">
+        <label><span data-i18n="soilThresh">Soil moisture threshold</span> <span id="soilThreshVal">78%</span></label>
+        <input type="range" id="soilThresh" min="40" max="95" value="78">
+      </div>
+      <div class="slider-row">
+        <label><span data-i18n="vibThresh">Vibration threshold</span> <span id="vibThreshVal">6.0</span></label>
+        <input type="range" id="vibThresh" min="1" max="10" value="6" step="0.1">
+      </div>
+      <div class="slider-row">
+        <label><span data-i18n="rainThresh">Rain rate threshold</span> <span id="rainThreshVal">40mm/h</span></label>
+        <input type="range" id="rainThresh" min="10" max="100" value="40">
+      </div>
+      <div class="small-btn-row">
+        <button class="btn btn-danger" id="injectLandslide">⛰ <span data-i18n="injLandslide">Inject Landslide</span></button>
+        <button class="btn btn-danger" id="injectFlood">🌊 <span data-i18n="injFlood">Inject Flash Flood</span></button>
+        <button class="btn" id="hwReset">↺ <span data-i18n="hwReset">Reset Node</span></button>
+        <button class="btn" id="battSaver">🔋 <span data-i18n="battSaver">Battery Saver</span></button>
+        <button class="btn" id="offlineSim">📴 <span data-i18n="offlineSim">Simulate Offline</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER COLUMN -->
+  <div class="col">
+    <div class="panel glass map-panel">
+      <div class="map-header">
+        <div class="panel-title" style="margin-bottom:0;" data-i18n="giswTitle">LIVE GIS TRACKING — OpenStreetMap</div>
+        <div class="map-toggles">
+          <button class="btn" id="heatmapToggle">🔥 <span data-i18n="heatmap">Heatmap</span></button>
+          <button class="btn" id="geofenceToggle">⬤ <span data-i18n="geofence">Geofence</span></button>
+          <button class="btn" id="tilt3dToggle">🧭 3D View</button>
+          <button class="btn btn-mesh" id="radarToggle">🛰 Live Radar</button>
+        </div>
+      </div>
+      <div id="mapWrap"><div id="map"></div></div>
+      <div id="placeInfoPanel" class="place-info hidden">
+        <div class="pi-close" id="piClose">✕</div>
+        <div class="pi-loading" id="piLoading">Fetching location data…</div>
+        <div id="piContent" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title"><span data-i18n="waveform">TELEMETRY WAVEFORM</span><span class="hint" id="waveformNodeLabel">Dharali · Uttarakhand</span></div>
+      <div class="chart-box"><canvas id="waveformChart"></canvas></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title" data-i18n="comparative">COMPARATIVE RISK ANALYTICS — ALL NODES</div>
+      <div class="chart-box"><canvas id="comparativeChart"></canvas></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title"><span data-i18n="statusGrid">MULTI-NODE STATUS GRID</span></div>
+      <div class="status-grid-wrap">
+        <table class="status-grid" id="statusGrid">
+          <thead>
+            <tr>
+              <th data-i18n="thNode">NODE</th><th data-i18n="thType">HAZARD TYPE</th><th data-i18n="thRisk">RISK</th>
+              <th data-i18n="thThreat">THREAT</th><th data-i18n="thBatt">BATTERY</th><th data-i18n="thSignal">SIGNAL</th>
+              <th data-i18n="thPacket">PACKETS/s</th><th data-i18n="thAnomaly">TINYML ANOMALY</th><th data-i18n="thLifespan">BATT LIFE EST.</th>
+            </tr>
+          </thead>
+          <tbody id="statusGridBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title">🕐 INCIDENT TIMELINE<span class="hint">Recent WARN / CRITICAL events, network-wide</span></div>
+      <div class="timeline-wrap" id="timelineWrap"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="col">
+    <div class="panel glass">
+      <div class="panel-title" data-i18n="radialGauges">RADIAL GAUGE METERS</div>
+      <div class="gauge-grid" id="gaugeGrid"></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title">🧠 AI RISK FORECAST — NEXT 6H PROJECTION</div>
+      <div class="chart-box" style="height:120px;"><canvas id="forecastChart"></canvas></div>
+      <div class="forecast-note" id="forecastNote">Analyzing trend…</div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title">🎯 MULTI-SENSOR FUSION</div>
+      <table class="fusion-table" id="fusionTable"><tbody></tbody></table>
+      <div class="fusion-confidence-row"><span>FUSION CONFIDENCE</span><b id="fusionConfidence">--%</b></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title">🔮 WHAT-IF AI SIMULATOR</div>
+      <div class="whatif-grid" id="whatifGrid">
+        <button class="btn" data-whatif="rain20">🌧 Rainfall +20%</button>
+        <button class="btn" data-whatif="vibup">📳 Vibration ↑</button>
+        <button class="btn" data-whatif="rainstop">☀ Rainfall stops</button>
+        <button class="btn" data-whatif="offline">📴 Node offline</button>
+      </div>
+      <div class="whatif-result" id="whatifResult">Tap a scenario to preview its effect on risk &amp; confidence — this only previews, it doesn't change the live simulation.</div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title">⚡ WHY THIS ALERT — EDGE AI REASONING</div>
+      <div id="reasoningWrap"></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title">🛟 COMMUNITY IMPACT ESTIMATOR</div>
+      <div class="impact-grid" id="impactGrid"></div>
+      <div class="impact-note">Illustrative estimates for pitch purposes — population figures are approximate per-node coverage zones, not census data.</div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title" data-i18n="meshHealth">MESH NETWORK HEALTH</div>
+      <div class="mesh-stat-row"><span data-i18n="rssi">Mesh RSSI</span><b id="meshRSSI">-62 dBm</b></div>
+      <div class="mesh-stat-row"><span data-i18n="packetLoss">Packet loss rate</span><b id="packetLoss">0.4%</b></div>
+      <div class="mesh-stat-row"><span data-i18n="signalQ">Signal quality index</span><b id="signalQ">Good</b></div>
+      <div class="mesh-stat-row"><span data-i18n="cacheStatus">Offline cache status</span><b id="cacheStatus">Synced</b></div>
+      <div id="offlineBannerWrap"></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title">🌐 EDGE-FIRST OPERATION</div>
+      <div class="edge-status-grid" id="edgeStatusGrid"></div>
+      <div class="impact-note" style="margin-top:8px;">System continues operating even when internet connectivity is unavailable — local Edge AI and cached alerts keep running.</div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title">🛡 FALSE ALARM PROTECTION<span class="hint" id="falseAlarmProb">--%</span></div>
+      <div id="falseAlarmBody"></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title"><span data-i18n="evac">EVACUATION GUIDANCE</span></div>
+      <div class="zone-row" id="evacZoneRow"></div>
+      <div class="route-flow" id="evacRouteFlow"></div>
+      <div class="evac-panel" id="evacPanel" data-i18n="evacDefault">No active hazard for selected node. Guidance will appear here when a threshold is breached.</div>
+      <div class="small-btn-row">
+        <button class="btn" id="voiceAlertBtn">🔈 Read Aloud (EN/TA)</button>
+      </div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title">🚑 AI RESCUE PRIORITY</div>
+      <div id="rescuePriorityList"></div>
+      <div class="section-sub">MANUAL DISPATCH — RESCUER TEAMS</div>
+      <div id="rescueList"></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title"><span data-i18n="incidentReport">INCIDENT REPORTING</span></div>
+      <div class="small-btn-row">
+        <button class="btn btn-accent" id="generatePdf">📄 <span data-i18n="genPdf">Generate PDF Report</span></button>
+        <button class="btn" id="telegramDispatch">✈ <span data-i18n="telegram">Telegram Alert</span></button>
+        <button class="btn" id="smsDispatch">📱 <span data-i18n="sms">SMS Dispatch</span></button>
+      </div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-title"><span data-i18n="auditLog">LIVE AUDIT LOG</span>
+        <button class="btn" style="padding:4px 9px;font-size:10px;" id="exportCsv">CSV ↓</button>
+      </div>
+      <div class="log-filters">
+        <button class="btn active" data-lvl="ALL">ALL</button>
+        <button class="btn" data-lvl="CRITICAL">CRITICAL</button>
+        <button class="btn" data-lvl="WARN">WARN</button>
+        <button class="btn" data-lvl="INFO">INFO</button>
+      </div>
+      <div class="log-wrap" id="logWrap"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel glass outlook-panel">
+  <div class="outlook-head">
+    <div>
+      <h2>🇮🇳 TAMIL NADU & INDIA HAZARD OUTLOOK — 2024–25 GROUND HISTORY</h2>
+      <p>All 38 Tamil Nadu districts + all Indian states/UTs · seeded from real 2024–25 landslide, flood, forest-fire, cyclone, gas-leak & pollution incidents · tap a card for a safety-readiness checklist</p>
+    </div>
+    <div id="outlookMonthPill" class="season-badge season-watch" style="font-size:11px;padding:6px 12px;"></div>
+  </div>
+  <div class="outlook-month-banner" id="outlookBanner"></div>
+  <div class="outlook-controls">
+    <input type="text" id="outlookSearch" placeholder="Search district / state / hazard (e.g. Nilgiris, flood, Kerala)...">
+    <div class="outlook-tabs" id="outlookRegionTabs">
+      <button class="active" data-region="ALL">ALL INDIA</button>
+      <button data-region="TN">TAMIL NADU (38)</button>
+      <button data-region="IN">OTHER STATES</button>
+    </div>
+    <div class="outlook-tabs" id="outlookHazardTabs">
+      <button class="active" data-hazard="ALL">All hazards</button>
+      <button data-hazard="landslide">Landslide</button>
+      <button data-hazard="flood">Flood</button>
+      <button data-hazard="forestfire">Forest fire</button>
+      <button data-hazard="cyclone">Cyclone</button>
+      <button data-hazard="gasleak">Gas leak</button>
+      <button data-hazard="pollution">Pollution</button>
+    </div>
+  </div>
+  <div class="outlook-grid" id="outlookGrid"></div>
+</div>
+
+<!-- v3.7: Government Mode -->
+<div class="panel glass gov-section" id="govSection" style="margin:0 14px 14px 14px;padding:20px;">
+  <div class="outlook-head" style="margin-bottom:16px;">
+    <div>
+      <h2 style="font-family:var(--mono);font-size:14px;letter-spacing:0.4px;">🏛️ GOVERNMENT / DEPARTMENT PORTAL — MEGHDRISHTI NATIONAL ENVIRONMENTAL &amp; DISASTER EARLY WARNING SYSTEM</h2>
+      <p style="font-size:11px;color:var(--text-dim);margin-top:2px;">Government-grade command layer built on top of the live sensor mesh above · <span class="gov-badge-sim">SIMULATED DEMO — not connected to official govt data sources</span></p>
+    </div>
+    <div class="status-badge sb-safe"><span class="bdot"></span>SYSTEM OPERATIONAL</div>
+  </div>
+
+  <div class="gov-tabs" id="govTabs">
+    <button class="active" data-gov="nat">🏠 National Dashboard</button>
+    <button data-gov="alerts">🚨 Alert Center</button>
+    <button data-gov="sensors">📡 Sensor Command</button>
+    <button data-gov="health">🔧 Sensor Health</button>
+    <button data-gov="dept">🏢 Departments</button>
+    <button data-gov="citizen">📱 Citizen Alerts</button>
+    <button data-gov="analytics">📊 Analytics &amp; Reports</button>
+    <button data-gov="security">🔐 Security &amp; Audit</button>
+    <button data-gov="emergency">🆘 Emergency Response</button>
+    <button data-gov="clients">🧑‍💼 Client Portal</button>
+    <button data-gov="integration">🔗 Data Integration</button>
+  </div>
+
+  <div class="gov-pane active" id="gov-nat">
+    <div class="gov-kpi-grid" id="govKpiGrid"></div>
+    <div class="gov-flow" style="margin-top:16px;">🗺️ Additional GIS hazard layers tracked network-wide: Flood · Landslide · Forest Fire · Lightning · Heavy Rain · Air Pollution · Water Pollution · Gas Leakage · Drought · Cyclone · Earthquake — full map overlay rendering is <span class="gov-badge-sim">SIMULATED</span>; live values surface in Alert Center &amp; Sensor Command below.</div>
+  </div>
+
+  <div class="gov-pane" id="gov-alerts">
+    <div class="panel-title" style="margin-bottom:8px;">NATIONAL ALERT CENTER<span class="hint">Sorted by severity, highest risk first</span></div>
+    <div class="status-grid-wrap">
+      <table class="status-grid"><thead><tr><th>ALERT</th><th>LOCATION</th><th>SEVERITY</th><th>TIME</th><th>STATUS</th></tr></thead><tbody id="govAlertBody"></tbody></table>
+    </div>
+  </div>
+
+  <div class="gov-pane" id="gov-sensors">
+    <div class="panel-title" style="margin-bottom:8px;">SENSOR NETWORK</div>
+    <div class="gov-kpi-grid" id="govSensorKpi" style="margin-bottom:14px;"></div>
+    <div id="govSensorList" style="max-height:360px;overflow-y:auto;padding-right:4px;"></div>
+  </div>
+
+  <div class="gov-pane" id="gov-health">
+    <div class="panel-title" style="margin-bottom:8px;">SENSOR HEALTH MONITORING — AI DIAGNOSTICS</div>
+    <div id="govHealthList"></div>
+  </div>
+
+  <div class="gov-pane" id="gov-dept">
+    <div class="panel-title" style="margin-bottom:8px;">DEPARTMENT LOGIN — TAP A DEPARTMENT FOR ITS VIEW</div>
+    <div class="gov-dept-grid" id="govDeptGrid"></div>
+    <div id="govDeptDetail" style="margin-top:14px;"></div>
+  </div>
+
+  <div class="gov-pane" id="gov-citizen">
+    <div class="panel-title" style="margin-bottom:8px;">GEO-TARGETED CITIZEN ALERTS</div>
+    <div class="gov-form-row">
+      <select id="govCitState"></select>
+      <select id="govCitDistrict"></select>
+      <input type="number" id="govCitRadius" placeholder="Radius (km)" value="10" min="1" max="100">
+    </div>
+    <div class="gov-channel-row" id="govChannelRow">
+      <span class="gov-channel-chip active" data-ch="web">Web notification</span>
+      <span class="gov-channel-chip active" data-ch="sms">SMS (SIMULATED)</span>
+      <span class="gov-channel-chip" data-ch="email">Email</span>
+      <span class="gov-channel-chip" data-ch="mobile">Mobile notification</span>
+      <span class="gov-channel-chip" data-ch="whatsapp">WhatsApp (SIMULATED)</span>
+    </div>
+    <button class="btn btn-accent" id="govCitSubscribe" style="width:100%;justify-content:center;">📍 Notify me about hazards within this radius</button>
+    <div id="govCitResult" style="margin-top:10px;font-size:11.5px;color:var(--text-dim);"></div>
+  </div>
+
+  <div class="gov-pane" id="gov-analytics">
+    <div class="panel-title" style="margin-bottom:8px;">HISTORICAL &amp; SESSION ANALYTICS</div>
+    <div class="gov-kpi-grid" id="govAnalyticsKpi"></div>
+    <div class="small-btn-row" style="margin-top:16px;">
+      <button class="btn btn-accent" id="govGenReport">📄 GENERATE SITUATION REPORT</button>
+    </div>
+    <div style="font-size:10.5px;color:var(--text-faint);margin-top:6px;">Compiles current alerts, sensor statistics, AI prediction and recommended actions into a downloadable PDF district situation report.</div>
+  </div>
+
+  <div class="gov-pane" id="gov-security">
+    <div class="panel-title" style="margin-bottom:8px;">ROLE-BASED ACCESS &amp; AUDIT LOG</div>
+    <div class="gov-audit-role">
+      <span style="font-size:11.5px;color:var(--text-dim);">Logged in as:</span>
+      <select id="govRoleSel">
+        <option>System Admin</option><option>District Collector</option><option>Disaster Response Officer</option>
+        <option>Network Engineer</option><option>Field Officer</option><option>Analyst</option><option>Public</option>
+      </select>
+      <span class="status-badge sb-safe" id="govRoleBadge"><span class="bdot"></span>FULL ADMIN ACCESS</span>
+    </div>
+    <div class="log-wrap" id="govAuditWrap" style="max-height:280px;"></div>
+  </div>
+
+  <div class="gov-pane" id="gov-emergency">
+    <div class="panel-title" style="margin-bottom:8px;">EMERGENCY RESPONSE MODULE</div>
+    <div id="govEmergencyBody"></div>
+  </div>
+
+  <div class="gov-pane" id="gov-clients">
+    <div class="panel-title" style="margin-bottom:8px;">SOLUTIONS FOR</div>
+    <div class="gov-dept-grid" id="govClientGrid"></div>
+  </div>
+
+  <div class="gov-pane" id="gov-integration">
+    <div class="panel-title" style="margin-bottom:8px;">GOVERNMENT DATA INTEGRATION LAYER</div>
+    <div class="gov-flow">
+      MEGHDRISHTI SENSOR MESH<br>↓<br>Government / Official Data Sources<br>↓<br>Data Validation<br>↓<br>AI Fusion Engine<br>↓<br>Risk Engine<br>↓<br>GIS<br>↓<br>Alert Engine<br>↓<br><b>Department Dashboards / Citizen Alerts</b>
+    </div>
+    <div style="text-align:center;margin-top:14px;">
+      <span class="gov-badge-sim">SIMULATED — no official IMD / CWC / INCOIS / DGRE / FSI API connected in this prototype</span>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">MEGHDRISHTI · Simulated multi-sensor mesh demo for hackathon presentation · Seeded with 2025 monsoon-season disaster patterns across India · Not connected to live government sensor feeds · Hazard Outlook section is a historically-informed seasonal reference, not an official forecast</div>
+
+<div id="toasts"></div>
+<!-- v3.6: Emergency Mobile Mode overlay -->
+<div id="emergencyOverlay" role="dialog" aria-modal="true" aria-label="Emergency Mobile Mode">
+  <div class="emg-top">
+    <div class="emg-title">🚨 EMERGENCY MODE<small id="emgClock">--:--:--</small></div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="emg-x" id="emgLangBtn">தமிழ் / EN</button>
+      <button class="emg-x" id="emgClose">✕ Exit</button>
+    </div>
+  </div>
+  <div class="emg-body">
+    <div class="emg-selects">
+      <select id="emgStateSel" aria-label="State"></select>
+      <select id="emgDistrictSel" aria-label="District / node"></select>
+    </div>
+    <div class="emg-risk">
+      <div class="num" id="emgRisk">--</div>
+      <div class="lbl" id="emgThreat">—</div>
+      <div class="loc" id="emgLoc">—</div>
+      <div style="margin-top:10px;"><span class="status-badge sb-safe" id="emgBadge"><span class="bdot"></span><span id="emgBadgeTxt">SAFE</span></span></div>
+    </div>
+    <button class="emg-sos" id="emgSOS">SOS</button>
+    <div id="emgSosLog" class="emg-sos-log"></div>
+    <div class="emg-grid2">
+      <button class="emg-act voice" id="emgSpeakEN"><span class="ico">🔊</span>Voice Guidance (English)</button>
+      <button class="emg-act voice" id="emgSpeakTA"><span class="ico">🔊</span>குரல் வழிகாட்டல் (தமிழ்)</button>
+      <a class="emg-act danger" id="emgCall112" href="tel:112"><span class="ico">📞</span>Call 112</a>
+      <a class="emg-act danger" id="emgCall1077" href="tel:1077"><span class="ico">🏛</span>District Control 1077</a>
+      <button class="emg-act" id="emgStopVoice"><span class="ico">⏹</span>Stop Voice</button>
+      <button class="emg-act" id="emgSiren"><span class="ico">📣</span>Local Siren</button>
+    </div>
+    <div class="emg-card">
+      <div class="emg-h">Evacuation shortcuts</div>
+      <div id="emgSteps"></div>
+    </div>
+    <div class="emg-card">
+      <div class="emg-h">Nearest rescue &amp; safe route</div>
+      <div class="emg-route" id="emgRoute"></div>
+      <div class="emg-grid2" style="margin-top:12px;">
+        <a class="emg-act" id="emgMapsBtn" target="_blank" rel="noopener"><span class="ico">🧭</span>Open Route in Maps</a>
+        <button class="emg-act" id="emgShareBtn"><span class="ico">📤</span>Share My Location</button>
+      </div>
+    </div>
+    <div class="emg-card">
+      <div class="emg-h">AI rescue priority queue</div>
+      <div id="emgQueue"></div>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+/* ============================= i18n ============================= */
+const I18N = {
+  en:{
+    brandName:"MEGHDRISHTI", brandTag:"Environmental Early Warning Mesh — India",
+    siren:"Siren", liveFeed:"Live Feed: ON", demoMode:"Judge Demo Mode",
+    networkRisk:"NETWORK RISK SCORE", allNodesAvg:"Average across all nodes",
+    nodeList:"SENSOR NODES", controlPanel:"SIMULATION & THRESHOLDS",
+    simSpeed:"Simulation speed", soilThresh:"Soil moisture threshold",
+    vibThresh:"Vibration threshold", rainThresh:"Rain rate threshold",
+    injLandslide:"Inject Landslide", injFlood:"Inject Flash Flood",
+    hwReset:"Reset Node", battSaver:"Battery Saver", offlineSim:"Simulate Offline",
+    giswTitle:"LIVE GIS TRACKING — OpenStreetMap", heatmap:"Heatmap", geofence:"Geofence",
+    waveform:"TELEMETRY WAVEFORM", comparative:"COMPARATIVE RISK ANALYTICS — ALL NODES",
+    statusGrid:"MULTI-NODE STATUS GRID", radialGauges:"RADIAL GAUGE METERS",
+    meshHealth:"MESH NETWORK HEALTH", rssi:"Mesh RSSI", packetLoss:"Packet loss rate",
+    signalQ:"Signal quality index", cacheStatus:"Offline cache status",
+    evac:"EVACUATION GUIDANCE", evacDefault:"No active hazard for selected node. Guidance will appear here when a threshold is breached.",
+    rescue:"RESCUER DISPATCH COORDINATOR", incidentReport:"INCIDENT REPORTING",
+    genPdf:"Generate PDF Report", telegram:"Telegram Alert", sms:"SMS Dispatch",
+    auditLog:"LIVE AUDIT LOG",
+    thNode:"NODE", thType:"HAZARD TYPE", thRisk:"RISK", thThreat:"THREAT", thBatt:"BATTERY",
+    thSignal:"SIGNAL", thPacket:"PACKETS/s", thAnomaly:"TINYML ANOMALY", thLifespan:"BATT LIFE EST.",
+    safe:"SAFE", watch:"WATCH", warning:"WARNING", critical:"CRITICAL",
+    dispatch:"Dispatch", enroute:"En route", standby:"Standby"
+  },
+  ta:{
+    brandName:"மேக்திருஷ்டி", brandTag:"சுற்றுச்சூழல் முன்னெச்சரிக்கை வலையமைப்பு — இந்தியா",
+    siren:"சைரன்", liveFeed:"நேரடி தரவு: ஆன்", demoMode:"நடுவர் டெமோ",
+    networkRisk:"வலைப்பின்னல் ஆபத்து மதிப்பெண்", allNodesAvg:"அனைத்து முனைகளின் சராசரி",
+    nodeList:"சென்சார் முனைகள்", controlPanel:"சிமுலேஷன் & வரம்புகள்",
+    simSpeed:"சிமுலேஷன் வேகம்", soilThresh:"மண் ஈரப்பத வரம்பு",
+    vibThresh:"அதிர்வு வரம்பு", rainThresh:"மழை வீத வரம்பு",
+    injLandslide:"நிலச்சரிவு சேர்", injFlood:"திடீர் வெள்ளம் சேர்",
+    hwReset:"முனையை மீட்டமை", battSaver:"பேட்டரி சேமிப்பு", offlineSim:"ஆஃப்லைன் சோதனை",
+    giswTitle:"நேரடி GIS கண்காணிப்பு", heatmap:"வெப்ப வரைபடம்", geofence:"வேலி எல்லை",
+    waveform:"தொலைத்தகவல் அலைவடிவம்", comparative:"ஒப்பீட்டு ஆபத்து பகுப்பாய்வு",
+    statusGrid:"பல-முனை நிலை அட்டவணை", radialGauges:"கோள அளவீட்டு மீட்டர்கள்",
+    meshHealth:"வலையமைப்பு நலம்", rssi:"மெஷ் RSSI", packetLoss:"பாக்கெட் இழப்பு விகிதம்",
+    signalQ:"சிக்னல் தர குறியீடு", cacheStatus:"ஆஃப்லைன் கேஷ் நிலை",
+    evac:"வெளியேற்ற வழிகாட்டல்", evacDefault:"தேர்ந்தெடுக்கப்பட்ட முனைக்கு ஆபத்து இல்லை. வரம்பு மீறப்படும்போது வழிகாட்டல் இங்கே தோன்றும்.",
+    rescue:"மீட்பு குழு அனுப்புநர்", incidentReport:"சம்பவ அறிக்கை",
+    genPdf:"PDF அறிக்கை உருவாக்கு", telegram:"டெலிகிராம் எச்சரிக்கை", sms:"SMS அனுப்பு",
+    auditLog:"நேரடி பதிவு",
+    thNode:"முனை", thType:"ஆபத்து வகை", thRisk:"ஆபத்து", thThreat:"அச்சுறுத்தல்", thBatt:"பேட்டரி",
+    thSignal:"சிக்னல்", thPacket:"பாக்கெட்/s", thAnomaly:"TinyML ஏரர்", thLifespan:"பேட். ஆயுள்",
+    safe:"பாதுகாப்பு", watch:"கவனிப்பு", warning:"எச்சரிக்கை", critical:"அபாயகரம்",
+    dispatch:"அனுப்பு", enroute:"பயணத்தில்", standby:"தயார் நிலை"
+  }
+};
+let currentLang = 'en';
+function t(key){ return I18N[currentLang][key] || I18N.en[key] || key; }
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+  renderNodeList(); renderStatusGrid(); renderRescueList();
+}
+document.getElementById('langEN').onclick = ()=>{currentLang='en';setLangBtn();applyI18n();};
+document.getElementById('langTA').onclick = ()=>{currentLang='ta';setLangBtn();applyI18n();};
+function setLangBtn(){
+  document.getElementById('langEN').classList.toggle('active', currentLang==='en');
+  document.getElementById('langTA').classList.toggle('active', currentLang==='ta');
+}
+
+/* ============================= State / Nodes ============================= */
+// Full sensor mesh is now built from TN_DISTRICTS (all 38 TN districts) + INDIA_STATES
+// (all-India hotspots) further down this file, once that hazard data is loaded —
+// see buildSensorNodes() near the OUTLOOK_DATA section. `nodes` starts empty here
+// and gets populated (and sorted highest-hazard-first) right before init.
+let livesProtectedCounter = 0;
+
+const RESCUE_TEAMS = [
+  {name:'NDRF Bn-4', lat:30.32, lng:78.03, status:'standby'},
+  {name:'SDRF Himachal', lat:31.10, lng:77.17, status:'standby'},
+  {name:'Coast Guard Chennai', lat:13.10, lng:80.29, status:'standby'},
+  {name:'NDRF Bn-9 Guwahati', lat:26.18, lng:91.75, status:'standby'},
+];
+
+function baseline(type){
+  if(type==='hill') return {soil:38, vib:1.8, gas:12, batt:12.6, rssi:-58, temp:19, pressure:912, rain:4};
+  if(type==='plains') return {soil:45, vib:0.6, gas:18, batt:12.4, rssi:-64, temp:29, pressure:1006, rain:6};
+  return {soil:50, vib:0.4, gas:22, batt:12.5, rssi:-61, temp:31, pressure:1008, rain:8};
+}
+
+let nodes = [];
+let selectedNodeId = null;
+let simSpeed = 1;
+let sirenMuted = false;
+let liveFeedOn = true;
+let heatmapOn = false;
+let geofenceOn = true;
+let logEntries = [];
+let logFilter = 'ALL';
+let thresholds = {soil:78, vib:6.0, rain:40};
+let audioCtx = null;
+let sirenInterval = null;
+
+/* ============================= Utility ============================= */
+function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+function rand(min,max){return Math.random()*(max-min)+min;}
+function nowStr(){
+  const d = new Date();
+  return d.toLocaleTimeString('en-IN',{hour12:false});
+}
+function threatFromRisk(r){
+  if(r>=75) return 'critical';
+  if(r>=55) return 'warning';
+  if(r>=30) return 'watch';
+  return 'safe';
+}
+const THREAT_COLOR = {safe:'#3FB68B', watch:'#F2A93B', warning:'#F2790C', critical:'#E23D3D'};
+
+function addLog(level, message){
+  logEntries.unshift({time:nowStr(), level, message});
+  if(logEntries.length>300) logEntries.pop();
+  renderLog();
+  if(typeof renderTimeline==='function') renderTimeline();
+}
+
+function toast(message, crit=false){
+  const wrap = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast'+(crit?' crit':'');
+  el.innerHTML = message;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .4s'; setTimeout(()=>el.remove(),400); }, 5200);
+}
+
+/* ============================= Risk calculation ============================= */
+function computeRisk(n){
+  let score;
+  if(n.type==='hill'){
+    score = (n.soil/100*35) + (n.vib/10*40) + (n.rain/100*15) + (n.gas/300*10);
+  } else if(n.type==='plains'){
+    score = (n.soil/100*30) + (n.rain/100*45) + (n.vib/10*10) + (n.gas/300*15);
+  } else {
+    score = (n.rain/100*40) + (n.soil/100*25) + ((1020-n.pressure)/40*20) + (n.gas/300*15);
+  }
+  // reliability penalty: weak battery / signal inflates uncertainty -> slightly raises displayed risk
+  const battFactor = n.batt < 11.5 ? 4 : 0;
+  const rssiFactor = n.rssi < -80 ? 3 : 0;
+  return clamp(Math.round(score + battFactor + rssiFactor), 0, 100);
+}
+
+/* ============================= Simulation tick ============================= */
+function tick(){
+  nodes.forEach(n=>{
+    if(n.offline){ return; } // frozen — showing cached values
+    if(n.isLive){
+      // "My Location" node is driven by real Open-Meteo data (refreshed every 5 min),
+      // not the synthetic random walk — just keep its risk/history ticking.
+      n.risk = computeRisk(n);
+      n.threat = threatFromRisk(n.risk);
+      n.history.push({t:Date.now(), soil:n.soil, rain:n.rain, vib:n.vib, risk:n.risk});
+      if(n.history.length>60) n.history.shift();
+      n.lastAlertThreat = n.threat;
+      return;
+    }
+    const sampleFactor = n.battSaverOn ? 0.4 : 1;
+    // slow random walk toward baseline + noise
+    const b = baseline(n.type);
+    n.soil = clamp(n.soil + rand(-1.2,1.2)*sampleFactor + (n.soil<b.soil? 0.3:-0.3), 5, 100);
+    n.vib = clamp(n.vib + rand(-0.15,0.15)*sampleFactor, 0, 10);
+    n.gas = clamp(n.gas + rand(-1.5,1.5), 5, 300);
+    n.rain = clamp(n.rain + rand(-1,1.5)*sampleFactor, 0, 120);
+    n.temp = clamp(n.temp + rand(-0.2,0.2), 5, 45);
+    n.pressure = clamp(n.pressure + rand(-0.4,0.4), 880, 1020);
+    n.batt = clamp(n.batt - rand(0,0.004), 9.5, 13.2);
+    n.rssi = clamp(n.rssi + rand(-1,1), -95, -40);
+    n.packetRate = clamp(Math.round(n.packetRate + rand(-1,1)), 4, 22);
+    n.packetLoss = clamp(+(n.packetLoss + rand(-0.05,0.05)).toFixed(2), 0, 8);
+
+    // active disaster injection sequence
+    if(n.injectTicks > 0){
+      n.injectTicks--;
+      if(n.injectType==='landslide'){
+        n.vib = clamp(n.vib + rand(0.6,1.4), 0, 10);
+        n.soil = clamp(n.soil + rand(1.5,3), 0, 100);
+      } else if(n.injectType==='flood'){
+        n.rain = clamp(n.rain + rand(4,9), 0, 120);
+        n.soil = clamp(n.soil + rand(1,2.5), 0, 100);
+      }
+    } else {
+      n.injectType = null;
+    }
+
+    n.risk = computeRisk(n);
+    n.threat = threatFromRisk(n.risk);
+    n.anomalyScore = clamp(Math.round(Math.abs(n.risk - (n.history.length? n.history[n.history.length-1].risk : n.risk))*6 + rand(0,6)), 0, 100);
+
+    n.history.push({t:Date.now(), soil:n.soil, rain:n.rain, vib:n.vib, risk:n.risk});
+    if(n.history.length>60) n.history.shift();
+
+    // threat escalation logging + alerts
+    const order = {safe:0,watch:1,warning:2,critical:3};
+    if(order[n.threat] > order[n.lastAlertThreat]){
+      if(n.threat==='warning'){ addLog('WARN', `${n.name}: risk escalated to WARNING (${n.risk})`); }
+      if(n.threat==='critical'){
+        addLog('CRITICAL', `${n.name}: CRITICAL threshold breached (${n.risk}) — ${n.type==='hill'?'landslide risk':'flood risk'}`);
+        toast(`🚨 <b>${n.name}</b><br>Threat escalated to CRITICAL`, true);
+        playSiren();
+        if(!sirenMuted && n.id===selectedNodeId){ speakAlert(); }
+        if(liveFeedOn) dispatchAuthorityAlert(n);
+      }
+    }
+    n.lastAlertThreat = n.threat;
+  });
+
+  updateUI();
+}
+
+/* ============================= Siren ============================= */
+function ensureAudio(){ if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); } }
+function playSiren(){
+  if(sirenMuted) return;
+  ensureAudio();
+  const anyCritical = nodes.some(n=>n.threat==='critical');
+  if(!anyCritical) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type='sine'; o.frequency.setValueAtTime(880, audioCtx.currentTime);
+  o.frequency.linearRampToValueAtTime(660, audioCtx.currentTime+0.3);
+  g.gain.setValueAtTime(0.08, audioCtx.currentTime);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime+0.32);
+}
+document.getElementById('sirenToggle').onclick = function(){
+  sirenMuted = !sirenMuted;
+  this.classList.toggle('active', sirenMuted);
+  this.innerHTML = sirenMuted ? '🔇 <span data-i18n="siren">'+t('siren')+'</span>' : '🔊 <span data-i18n="siren">'+t('siren')+'</span>';
+};
+
+/* ============================= Node list & selection ============================= */
+function renderNodeList(){
+  const wrap = document.getElementById('nodeListWrap');
+  const q = (document.getElementById('nodeSearch').value||'').toLowerCase();
+  wrap.innerHTML='';
+  nodes.filter(n=> n.name.toLowerCase().includes(q) || n.state.toLowerCase().includes(q) || n.type.includes(q)).forEach(n=>{
+    const div = document.createElement('div');
+    div.className = 'node-item'+(n.id===selectedNodeId?' selected':'');
+    div.innerHTML = `<span class="pip" style="background:${THREAT_COLOR[n.threat]};box-shadow:0 0 6px ${THREAT_COLOR[n.threat]}"></span>
+      <div class="info"><div class="name">${n.name}${n.offline?' 📴':''}</div><div class="meta">${n.state} · ${(n.hz||[]).map(h=>HAZ_LABEL[h]).join(', ')}</div></div>
+      <div class="risk" style="color:${THREAT_COLOR[n.threat]}">${n.risk}</div>`;
+    div.onclick = ()=>{ selectedNodeId = n.id; renderNodeList(); refreshSelectedPanels(); };
+    wrap.appendChild(div);
+  });
+  document.getElementById('nodeCount').textContent = `${nodes.filter(n=>!n.offline).length} active / ${nodes.length}`;
+}
+document.getElementById('nodeSearch').oninput = renderNodeList;
+
+function getSelectedNode(){ return nodes.find(n=>n.id===selectedNodeId); }
+
+/* ============================= Map ============================= */
+let map, markers={}, geofences={}, heatLayer;
+function initMap(){
+  map = L.map('map', {
+    zoomControl:true,
+    scrollWheelZoom:true,
+    doubleClickZoom:true,
+    touchZoom:true,
+    dragging:true,
+    boxZoom:true,
+    minZoom:3,
+    maxZoom:18
+  }).setView([22.5, 80], 4.4);
+  // Free OpenStreetMap tiles — no API key needed. CSS filter (.leaflet-tile-pane)
+  // inverts colors to recreate the dark theme instead of relying on CARTO's
+  // now-paid dark_all tiles which were showing "API KEY REQUIRED" watermarks.
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap contributors', maxZoom:19
+  }).addTo(map);
+  // Recalculate map size once boot splash overlay is gone and on any resize —
+  // without this, Leaflet can miscalculate the container size and zoom/drag feels broken.
+  setTimeout(()=>map.invalidateSize(), 2700);
+  window.addEventListener('resize', ()=>map.invalidateSize());
+
+  nodes.forEach(n=>{
+    const marker = L.circleMarker([n.lat,n.lng],{
+      radius:9, color:THREAT_COLOR[n.threat], fillColor:THREAT_COLOR[n.threat], fillOpacity:0.85, weight:2
+    }).addTo(map);
+    marker.bindPopup(`<b>${n.name}</b><br>${n.state}<br>${n.note}<br><b>Risk: <span id="pop-${n.id}">${n.risk}</span></b>`);
+    marker.on('click', (e)=>{ selectedNodeId=n.id; renderNodeList(); refreshSelectedPanels(); L.DomEvent.stopPropagation(e); });
+    markers[n.id] = marker;
+
+    const gf = L.circle([n.lat,n.lng], {radius:28000, color:THREAT_COLOR[n.threat], fillOpacity:0.05, weight:1, dashArray:'4 4'}).addTo(map);
+    geofences[n.id] = gf;
+  });
+
+  RESCUE_TEAMS.forEach(rt=>{
+    L.marker([rt.lat, rt.lng], {icon: L.divIcon({className:'', html:'🚑', iconSize:[20,20]})})
+      .addTo(map).bindPopup(`<b>${rt.name}</b><br>Status: ${rt.status}`)
+      .on('click', (e)=>L.DomEvent.stopPropagation(e));
+  });
+
+  // Click anywhere on the map (not on a marker) to get exact state, date/time,
+  // live weather, and flood/cyclone risk for that spot.
+  map.on('click', (e)=>{ showPlaceInfo(e.latlng.lat, e.latlng.lng); });
+}
+function updateMap(){
+  nodes.forEach(n=>{
+    const m = markers[n.id];
+    m.setStyle({color:THREAT_COLOR[n.threat], fillColor:THREAT_COLOR[n.threat]});
+    const popEl = document.getElementById('pop-'+n.id);
+    if(popEl) popEl.textContent = n.risk;
+    geofences[n.id].setStyle({color:THREAT_COLOR[n.threat], fillOpacity: n.threat==='critical'?0.16:0.05});
+  });
+  if(heatmapOn) updateHeatmap();
+}
+function updateHeatmap(){
+  if(heatLayer) map.removeLayer(heatLayer);
+  const pts = nodes.map(n=>[n.lat, n.lng, n.risk/100]);
+  heatLayer = L.heatLayer(pts, {radius:55, blur:40, maxZoom:6}).addTo(map);
+}
+document.getElementById('heatmapToggle').onclick = function(){
+  heatmapOn = !heatmapOn;
+  this.classList.toggle('active', heatmapOn);
+  if(heatmapOn){ updateHeatmap(); } else if(heatLayer){ map.removeLayer(heatLayer); }
+};
+document.getElementById('geofenceToggle').onclick = function(){
+  geofenceOn = !geofenceOn;
+  this.classList.toggle('active', geofenceOn);
+  Object.values(geofences).forEach(gf=>{ geofenceOn? gf.addTo(map) : map.removeLayer(gf); });
+};
+document.getElementById('tilt3dToggle').onclick = function(){
+  const wrap = document.getElementById('mapWrap');
+  const on = wrap.classList.toggle('tilt-3d');
+  this.classList.toggle('active', on);
+  setTimeout(()=>map.invalidateSize(), 520);
+};
+
+/* ============================= Click-to-inspect: state, date/time, weather, flood/cyclone risk ============================= */
+let clickMarker = null;
+const WMO_DESC = {
+  0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',
+  45:'Fog',48:'Depositing rime fog',
+  51:'Light drizzle',53:'Moderate drizzle',55:'Dense drizzle',
+  61:'Slight rain',63:'Moderate rain',65:'Heavy rain',
+  66:'Freezing rain',67:'Heavy freezing rain',
+  71:'Slight snow',73:'Moderate snow',75:'Heavy snow',
+  80:'Slight rain showers',81:'Moderate rain showers',82:'Violent rain showers',
+  95:'Thunderstorm',96:'Thunderstorm with hail',99:'Thunderstorm with heavy hail'
+};
+function wmoDesc(code){ return WMO_DESC[code] ?? 'Weather data unavailable'; }
+function normState(s){ return (s||'').toLowerCase().replace(/[^a-z]/g,''); }
+function matchHazardEntries(stateName){
+  if(!stateName) return [];
+  const target = normState(stateName);
+  return OUTLOOK_DATA.filter(d=>{ const ds=normState(d.state); return ds.includes(target) || target.includes(ds); });
+}
+
+async function showPlaceInfo(lat, lng){
+  const panel = document.getElementById('placeInfoPanel');
+  const loading = document.getElementById('piLoading');
+  const content = document.getElementById('piContent');
+  panel.classList.remove('hidden');
+  loading.style.display = 'block';
+  content.style.display = 'none';
+
+  if(clickMarker) map.removeLayer(clickMarker);
+  clickMarker = L.marker([lat,lng]).addTo(map);
+
+  let stateName = 'Unknown', placeName = `${lat.toFixed(3)}, ${lng.toFixed(3)}`, country = '';
+  let weather = null;
+
+  try{
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=8&addressdetails=1`);
+    const geo = await geoRes.json();
+    if(geo && geo.address){
+      stateName = geo.address.state || geo.address.state_district || geo.address.county || 'Unknown (likely open sea)';
+      country = geo.address.country || '';
+      placeName = geo.display_name ? geo.display_name.split(',').slice(0,3).join(',') : placeName;
+    }
+  }catch(e){ addLog('WARN','Reverse geocoding failed — check internet connection'); }
+
+  try{
+    const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=precipitation_sum,precipitation_probability_max&timezone=auto`);
+    weather = await wRes.json();
+  }catch(e){ addLog('WARN','Live weather fetch failed — check internet connection'); }
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-IN',{weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const timeStr = now.toLocaleTimeString('en-IN',{hour12:true});
+
+  const matches = matchHazardEntries(stateName);
+  const curMonth = now.getMonth()+1;
+  const hazardSet = new Set();
+  const activeNow = [];
+  matches.forEach(m=>{ m.hz.forEach(h=>hazardSet.add(h)); if(seasonStatus(m,curMonth).cls==='season-active') activeNow.push(m); });
+
+  const precipToday = weather?.daily?.precipitation_sum?.[0] ?? 0;
+  const precipProb = weather?.daily?.precipitation_probability_max?.[0] ?? 0;
+  const floodHazard = hazardSet.has('flood');
+  let floodRisk = {cls:'rk-low', label:'LOW'};
+  if(precipToday>50 || (floodHazard && activeNow.some(a=>a.hz.includes('flood')))) floodRisk = {cls:'rk-high', label:'HIGH'};
+  else if(precipToday>15 || precipProb>60 || floodHazard) floodRisk = {cls:'rk-mid', label:'MODERATE'};
+
+  const windNow = weather?.current?.wind_speed_10m ?? 0;
+  const cycloneHazard = hazardSet.has('cyclone');
+  const cycloneActiveSeason = activeNow.some(a=>a.hz.includes('cyclone'));
+  let cycloneRisk = {cls:'rk-low', label:'NOT A CYCLONE-EXPOSED AREA'};
+  if(cycloneHazard && windNow>40) cycloneRisk = {cls:'rk-high', label:'ELEVATED — HIGH WINDS NOW'};
+  else if(cycloneHazard && cycloneActiveSeason) cycloneRisk = {cls:'rk-mid', label:'SEASONAL WATCH WINDOW'};
+  else if(cycloneHazard) cycloneRisk = {cls:'rk-low', label:'OFF-SEASON (COASTAL BELT)'};
+
+  const hazardChips = [...hazardSet].map(h=>`<span class="hazard-tag htag-${h}">${HAZ_LABEL[h]}</span>`).join('')
+    || '<span style="color:var(--text-faint);font-size:11px;">No tracked hazard history for this state in our database</span>';
+
+  content.innerHTML = `
+    <div class="pi-title">📍 ${stateName}${country?', '+country:''}</div>
+    <div class="pi-sub">${placeName} · ${lat.toFixed(3)}, ${lng.toFixed(3)}</div>
+    <div class="pi-grid">
+      <div class="pi-stat"><div class="k">Date</div><div class="v" style="font-size:11.5px;">${dateStr}</div></div>
+      <div class="pi-stat"><div class="k">Time</div><div class="v">${timeStr}</div></div>
+      <div class="pi-stat"><div class="k">Temperature</div><div class="v">${weather?.current?.temperature_2m ?? '—'}°C</div></div>
+      <div class="pi-stat"><div class="k">Condition</div><div class="v" style="font-size:11.5px;">${weather?.current? wmoDesc(weather.current.weather_code): 'N/A'}</div></div>
+      <div class="pi-stat"><div class="k">Humidity</div><div class="v">${weather?.current?.relative_humidity_2m ?? '—'}%</div></div>
+      <div class="pi-stat"><div class="k">Wind</div><div class="v">${weather?.current?.wind_speed_10m ?? '—'} km/h</div></div>
+    </div>
+    <div class="pi-risk-row">
+      <span class="pi-risk-chip ${floodRisk.cls}">FLOOD RISK: ${floodRisk.label}</span>
+      <span class="pi-risk-chip ${cycloneRisk.cls}">CYCLONE: ${cycloneRisk.label}</span>
+    </div>
+    <div style="margin-bottom:8px;">${hazardChips}</div>
+    <div class="pi-note">${activeNow.length? `⚠ ${activeNow.length} tracked location(s) in this state are in an active hazard season this month. `:''}Flood/cyclone risk is estimated from today's forecast rainfall (${precipToday}mm, ${precipProb}% chance) and current wind, cross-checked with our historical hazard database — not a live IMD cyclone-track feed. For official cyclone tracking always cross-check IMD (mausam.imd.gov.in).</div>
+  `;
+  loading.style.display = 'none';
+  content.style.display = 'block';
+}
+document.getElementById('piClose').onclick = ()=>{ document.getElementById('placeInfoPanel').classList.add('hidden'); };
+
+/* ============================= My Location: live GPS + 3-hour predictive early warning ============================= */
+let myLocData = null, myLocInterval = null;
+function haversineKm(lat1,lng1,lat2,lng2){
+  const R=6371, toRad=d=>d*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLng=toRad(lng2-lng1);
+  const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R*2*Math.asin(Math.sqrt(a));
+}
+function predictNext3h(weather, hz){
+  if(!weather || !weather.hourly || !weather.hourly.time) return null;
+  const times = weather.hourly.time;
+  const nowKey = new Date().toISOString().slice(0,13);
+  let idx = times.findIndex(t=>t.startsWith(nowKey));
+  if(idx<0) idx = 0;
+  const slice = arr => (arr||[]).slice(idx, idx+3);
+  const temp = slice(weather.hourly.temperature_2m), precip = slice(weather.hourly.precipitation);
+  const humidity = slice(weather.hourly.relative_humidity_2m), wind = slice(weather.hourly.wind_speed_10m);
+  const hours = slice(times).map(t=>t.slice(11,16));
+  const totalPrecip3h = precip.reduce((a,b)=>a+(b||0),0);
+  const maxWind = wind.length?Math.max(...wind):0, minHumidity = humidity.length?Math.min(...humidity):100, maxTemp = temp.length?Math.max(...temp):0;
+  let floodPred = {cls:'rk-low', label:'LOW'};
+  if(totalPrecip3h>25) floodPred = {cls:'rk-high', label:'HIGH — HEAVY RAIN EXPECTED'};
+  else if(totalPrecip3h>8) floodPred = {cls:'rk-mid', label:'MODERATE'};
+  const fireProne = hz && hz.includes('forestfire');
+  let firePred = {cls:'rk-low', label: fireProne?'LOW':'N/A — NOT A FOREST-FIRE ZONE'};
+  if(fireProne){
+    if(maxTemp>35 && minHumidity<30 && maxWind>20) firePred = {cls:'rk-high', label:'HIGH — HOT, DRY & WINDY'};
+    else if(maxTemp>32 || minHumidity<40) firePred = {cls:'rk-mid', label:'MODERATE'};
+  }
+  return {hours, temp, precip, humidity, wind, totalPrecip3h, maxWind, minHumidity, maxTemp, floodPred, firePred};
+}
+
+async function runMyLocationCheck(){
+  const body = document.getElementById('myLocationBody');
+  const btn = document.getElementById('myLocationBtn');
+  if(!navigator.geolocation){ body.innerHTML = '<div class="pi-note">Geolocation not supported by this browser.</div>'; return; }
+  btn.textContent = '📡 Locating…';
+  body.innerHTML = '<div class="pi-loading">Getting your GPS location…</div>';
+  navigator.geolocation.getCurrentPosition(async (pos)=>{
+    const {latitude:lat, longitude:lng} = pos.coords;
+    btn.textContent = '📡 Refresh My Area';
+    body.innerHTML = '<div class="pi-loading">Fetching live weather + hazard data…</div>';
+    let stateName='Unknown', placeName=`${lat.toFixed(3)}, ${lng.toFixed(3)}`, country='';
+    try{
+      const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=8&addressdetails=1`);
+      const geo = await geoRes.json();
+      if(geo && geo.address){
+        stateName = geo.address.state || geo.address.state_district || geo.address.county || 'Unknown';
+        country = geo.address.country || '';
+        placeName = geo.display_name ? geo.display_name.split(',').slice(0,3).join(',') : placeName;
+      }
+    }catch(e){ addLog('WARN','My Location: reverse geocoding failed'); }
+    let weather = null;
+    try{
+      const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation,relative_humidity_2m,wind_speed_10m&daily=precipitation_sum&timezone=auto&forecast_days=1`);
+      weather = await wRes.json();
+    }catch(e){ addLog('WARN','My Location: live weather fetch failed'); }
+    const matches = matchHazardEntries(stateName);
+    const hazardSet = new Set(); matches.forEach(m=>m.hz.forEach(h=>hazardSet.add(h)));
+    const hzArr = [...hazardSet];
+    const pred = predictNext3h(weather, hzArr);
+    let nearest=null, nearestD=Infinity;
+    nodes.forEach(n=>{ if(n.id==='MY-LOCATION') return; const d=haversineKm(lat,lng,n.lat,n.lng); if(d<nearestD){ nearestD=d; nearest=n; } });
+    myLocData = {lat,lng,stateName,placeName,country,weather,hazardSet:hzArr,pred,nearest,nearestD};
+    renderMyLocation();
+    upsertMyLocationNode();
+    if(pred && (pred.floodPred.cls==='rk-high' || pred.firePred.cls==='rk-high')){
+      const hzType = pred.floodPred.cls==='rk-high' ? 'flood' : 'forestfire';
+      addLog('CRITICAL', `PREDICTIVE ALERT: ${placeName} — ${HAZ_LABEL[hzType]} risk expected to turn severe within 3 hours`);
+      toast(`🔮 <b>Predictive Alert</b><br>${placeName}: elevated ${HAZ_LABEL[hzType]} risk in next 3h — pre-emptive rescue dispatch queued`, true);
+      dispatchAuthorityAlert({name:placeName, state:stateName, hz:[hzType]});
+      if('Notification' in window && Notification.permission==='granted'){
+        new Notification('MEGHDRISHTI — Predictive Alert', {body:`${HAZ_LABEL[hzType]} risk rising near ${placeName} in the next 3 hours.`});
+      }
+    }
+  }, (err)=>{
+    btn.textContent = '📡 Check My Area Now';
+    body.innerHTML = `<div class="pi-note">⚠ Could not get your location (${err.message}). Please allow location access in your browser and try again.</div>`;
+  }, {enableHighAccuracy:true, timeout:15000});
+}
+
+function renderMyLocation(){
+  const body = document.getElementById('myLocationBody');
+  if(!myLocData) return;
+  const {stateName,country,placeName,weather,hazardSet,pred,nearest,nearestD} = myLocData;
+  const hazardChips = hazardSet.map(h=>`<span class="hazard-tag htag-${h}">${HAZ_LABEL[h]}</span>`).join('') || '<span style="color:var(--text-faint);font-size:11px;">No tracked hazard history for this state</span>';
+  const hourCards = pred ? pred.hours.map((h,i)=>`<div class="hr-card"><div class="t">${h}</div><div class="v">${Math.round(pred.temp[i])}°</div><div class="p">${Math.round(pred.precip[i])}mm</div></div>`).join('') : '<div class="pi-note">Hourly forecast unavailable</div>';
+  body.innerHTML = `
+    <div class="pi-title">📍 ${stateName}${country?', '+country:''}</div>
+    <div class="pi-sub">${placeName} · updated ${new Date().toLocaleTimeString('en-IN',{hour12:true})}</div>
+    <div class="pi-grid">
+      <div class="pi-stat"><div class="k">Temperature</div><div class="v">${weather?.current?.temperature_2m ?? '—'}°C</div></div>
+      <div class="pi-stat"><div class="k">Condition</div><div class="v" style="font-size:11.5px;">${weather?.current? wmoDesc(weather.current.weather_code):'N/A'}</div></div>
+      <div class="pi-stat"><div class="k">Humidity</div><div class="v">${weather?.current?.relative_humidity_2m ?? '—'}%</div></div>
+      <div class="pi-stat"><div class="k">Wind</div><div class="v">${weather?.current?.wind_speed_10m ?? '—'} km/h</div></div>
+    </div>
+    <div style="margin-bottom:6px;">${hazardChips}</div>
+    <div class="panel-title" style="margin:10px 0 6px;font-size:10px;">🔮 NEXT 3 HOURS — PREDICTIVE</div>
+    <div class="hr-row">${hourCards}</div>
+    ${pred?`<div class="pi-risk-row">
+      <span class="pi-risk-chip ${pred.floodPred.cls}">FLOOD (3H): ${pred.floodPred.label}</span>
+      <span class="pi-risk-chip ${pred.firePred.cls}">FOREST FIRE (3H): ${pred.firePred.label}</span>
+    </div>`:''}
+    ${nearest? `<div class="geo-nearby">📡 Nearest tracked sensor node: <b>${nearest.name}</b> (${nearest.state}) — ${nearestD.toFixed(1)} km away, current risk ${nearest.risk} (${nearest.threat.toUpperCase()})</div>`:''}
+    <div class="pi-note" style="margin-top:8px;">3-hour prediction uses live Open-Meteo forecast (rainfall + wind + humidity trend) cross-checked with our hazard database — a genuine early-warning estimate, not an official IMD forecast. Auto-refreshes every 5 minutes while this tab is open.</div>
+  `;
+}
+
+function upsertMyLocationNode(){
+  if(!myLocData) return;
+  const id = 'MY-LOCATION';
+  let n = nodes.find(x=>x.id===id);
+  const {lat,lng,stateName,placeName,weather,hazardSet} = myLocData;
+  const type = hazardSet.includes('cyclone')?'coastal':(hazardSet.includes('landslide')||hazardSet.includes('forestfire')?'hill':'plains');
+  const rain = weather?.current?.precipitation ?? 0;
+  const temp = weather?.current?.temperature_2m ?? 28;
+  if(!n){
+    n = {id, name:'📍 '+placeName.split(',')[0], state:stateName, type, lat, lng, note:'Your live device location', hz:hazardSet,
+      soil:40, vib:0.3, gas:15, batt:13.0, rssi:-50, temp, pressure:1008, rain,
+      risk:0, threat:'safe', history:[], anomalyScore:0, packetRate:20, packetLoss:0.1,
+      battSaverOn:false, offline:false, injectTicks:0, injectType:null, lastAlertThreat:'safe', isLive:true, population:0};
+    nodes.unshift(n);
+    selectedNodeId = id;
+  } else {
+    n.lat=lat; n.lng=lng; n.state=stateName; n.hz=hazardSet; n.temp=temp; n.rain=rain;
+  }
+  n.risk = computeRisk(n);
+  n.threat = threatFromRisk(n.risk);
+  renderNodeList(); updateUI();
+  if(map){
+    if(!markers[id]){
+      const marker = L.circleMarker([lat,lng], {radius:11, color:'#5B8DEF', fillColor:'#5B8DEF', fillOpacity:0.9, weight:3}).addTo(map);
+      marker.bindPopup(`<b>📍 Your Location</b><br>${placeName}`);
+      marker.on('click',(e)=>{ selectedNodeId=id; renderNodeList(); refreshSelectedPanels(); L.DomEvent.stopPropagation(e); });
+      markers[id]=marker;
+      geofences[id] = L.circle([lat,lng], {radius:15000, color:'#5B8DEF', fillOpacity:0.05, weight:1, dashArray:'4 4'}).addTo(map);
+      map.setView([lat,lng], 9);
+    } else {
+      markers[id].setLatLng([lat,lng]);
+      geofences[id].setLatLng([lat,lng]);
+    }
+  }
+}
+document.getElementById('myLocationBtn').onclick = ()=>{
+  if('Notification' in window && Notification.permission==='default'){ Notification.requestPermission(); }
+  runMyLocationCheck();
+  if(!myLocInterval){ myLocInterval = setInterval(runMyLocationCheck, 5*60*1000); }
+};
+
+/* ============================= Live rain radar overlay (RainViewer — free, no API key) ============================= */
+let radarLayer = null, radarOn = false, radarFrames = null;
+async function toggleRadar(){
+  radarOn = !radarOn;
+  document.getElementById('radarToggle').classList.toggle('active', radarOn);
+  if(radarOn){
+    try{
+      if(!radarFrames){
+        const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+        radarFrames = await res.json();
+      }
+      const past = radarFrames.radar?.past || [];
+      const frame = past[past.length-1];
+      if(frame){
+        radarLayer = L.tileLayer(`https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/4/1_1.png`, {opacity:0.55, maxZoom:12});
+        radarLayer.addTo(map);
+        addLog('INFO','Live rain radar overlay enabled (RainViewer)');
+      } else { addLog('WARN','Radar frames unavailable right now'); }
+    }catch(e){ addLog('WARN','Radar layer fetch failed — check internet connection'); }
+  } else if(radarLayer){ map.removeLayer(radarLayer); radarLayer=null; }
+}
+document.getElementById('radarToggle').onclick = toggleRadar;
+
+/* ============================= Gauges (SVG radial) ============================= */
+function radialGauge(id, value, max, colorStops, label, unit){
+  const pct = clamp(value/max,0,1);
+  const r=40, c=2*Math.PI*r;
+  const offset = c*(1-pct);
+  let color = colorStops[0].color;
+  for(const s of colorStops){ if(pct*max >= s.at) color = s.color; }
+  return `<div class="gauge">
+    <svg viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="${r}" stroke="rgba(255,255,255,0.08)" stroke-width="10" fill="none"/>
+      <circle cx="50" cy="50" r="${r}" stroke="${color}" stroke-width="10" fill="none"
+        stroke-dasharray="${c}" stroke-dashoffset="${offset}" stroke-linecap="round"
+        transform="rotate(-90 50 50)" style="transition:stroke-dashoffset .6s ease, stroke .3s;"/>
+      <text x="50" y="55" text-anchor="middle" font-family="Space Grotesk" font-size="18" fill="#EAF0F5" font-weight="700">${value}${unit||''}</text>
+    </svg>
+    <div class="lbl">${label}</div>
+  </div>`;
+}
+function renderGauges(){
+  const n = getSelectedNode();
+  const grid = document.getElementById('gaugeGrid');
+  grid.innerHTML = [
+    radialGauge('soil', Math.round(n.soil), 100, [{at:0,color:'#3FB68B'},{at:60,color:'#F2A93B'},{at:80,color:'#E23D3D'}], 'Soil Moisture', '%'),
+    radialGauge('gas', Math.round(n.gas), 300, [{at:0,color:'#3FB68B'},{at:120,color:'#F2A93B'},{at:200,color:'#E23D3D'}], 'Gas (PPM)', ''),
+    radialGauge('rain', Math.round(n.rain), 100, [{at:0,color:'#3FB68B'},{at:35,color:'#F2A93B'},{at:60,color:'#E23D3D'}], 'Rain Rate', 'mm/h'),
+    radialGauge('vib', +n.vib.toFixed(1), 10, [{at:0,color:'#3FB68B'},{at:5,color:'#F2A93B'},{at:7,color:'#E23D3D'}], 'Vibration', 'g'),
+    radialGauge('temp', Math.round(n.temp), 45, [{at:0,color:'#3FB68B'},{at:32,color:'#F2A93B'},{at:40,color:'#E23D3D'}], 'Node Temp', '°C'),
+    radialGauge('pressure', Math.max(0,Math.round(1013-n.pressure)), 40, [{at:0,color:'#3FB68B'},{at:12,color:'#F2A93B'},{at:22,color:'#E23D3D'}], 'Pressure Δ', 'hPa'),
+  ].join('');
+}
+
+/* ============================= Charts ============================= */
+let waveformChart, comparativeChart;
+function initCharts(){
+  const ctx1 = document.getElementById('waveformChart').getContext('2d');
+  waveformChart = new Chart(ctx1, {
+    type:'line',
+    data:{ labels:[], datasets:[
+      {label:'Soil Moisture %', data:[], borderColor:'#5B8DEF', backgroundColor:'transparent', tension:0.35, yAxisID:'y', pointRadius:0, borderWidth:2},
+      {label:'Rain Rate mm/h', data:[], borderColor:'#F2A93B', backgroundColor:'transparent', tension:0.35, yAxisID:'y1', pointRadius:0, borderWidth:2},
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{labels:{color:'#8CA0B3', boxWidth:10, font:{size:10}}}},
+      scales:{
+        x:{ticks:{color:'#5A6B7B', maxTicksLimit:6, font:{size:9}}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{position:'left', ticks:{color:'#8CA0B3', font:{size:9}}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y1:{position:'right', ticks:{color:'#8CA0B3', font:{size:9}}, grid:{display:false}},
+      }
+    }
+  });
+  const ctx2 = document.getElementById('comparativeChart').getContext('2d');
+  comparativeChart = new Chart(ctx2, {
+    type:'bar',
+    data:{ labels: nodes.map(n=>n.name.split('·')[0].trim()), datasets:[{label:'Risk Score', data: nodes.map(n=>n.risk), backgroundColor: nodes.map(n=>THREAT_COLOR[n.threat])}] },
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{duration:300},
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#8CA0B3', font:{size:9}}, grid:{display:false}},
+        y:{ticks:{color:'#8CA0B3', font:{size:9}}, grid:{color:'rgba(255,255,255,0.04)'}, max:100}
+      }
+    }
+  });
+}
+function updateCharts(){
+  const n = getSelectedNode();
+  waveformChart.data.labels = n.history.map(h=> new Date(h.t).toLocaleTimeString('en-IN',{hour12:false,minute:'2-digit',second:'2-digit'}));
+  waveformChart.data.datasets[0].data = n.history.map(h=>Math.round(h.soil));
+  waveformChart.data.datasets[1].data = n.history.map(h=>Math.round(h.rain));
+  waveformChart.update('none');
+  document.getElementById('waveformNodeLabel').textContent = `${n.name} · ${n.state}`;
+
+  comparativeChart.data.datasets[0].data = nodes.map(n=>n.risk);
+  comparativeChart.data.datasets[0].backgroundColor = nodes.map(n=>THREAT_COLOR[n.threat]);
+  comparativeChart.update('none');
+}
+
+/* ============================= Status grid ============================= */
+function battColor(v){ return v<11.4?'#E23D3D': v<12.0?'#F2A93B':'#3FB68B'; }
+function signalLabel(rssi){ return rssi> -55 ? 'Excellent' : rssi> -70 ? 'Good' : rssi> -85 ? 'Fair' : 'Poor'; }
+function battLifeDays(n){
+  const decay = 0.004 * (n.battSaverOn?0.4:1) * simSpeed;
+  const usable = n.batt - 9.5;
+  return Math.max(1, Math.round(usable/ (decay*40) ));
+}
+function renderStatusGrid(){
+  const body = document.getElementById('statusGridBody');
+  body.innerHTML = nodes.map(n=>{
+    const battPct = clamp(((n.batt-9.5)/(13.2-9.5))*100,0,100);
+    return `<tr>
+      <td><b>${n.name}</b><br><span style="color:var(--text-faint);font-size:10.5px">${n.state}</span></td>
+      <td><span class="node-type-tag">${n.type}</span></td>
+      <td style="color:${THREAT_COLOR[n.threat]};font-family:var(--mono);font-weight:700">${n.risk}</td>
+      <td><span class="badge" style="background:${THREAT_COLOR[n.threat]}22;color:${THREAT_COLOR[n.threat]}">${t(n.threat)}</span></td>
+      <td><div class="batt"><div class="batt-bar"><div class="batt-fill" style="width:${battPct}%;background:${battColor(n.batt)}"></div></div>${n.batt.toFixed(1)}V</div></td>
+      <td>${signalLabel(n.rssi)} (${Math.round(n.rssi)})</td>
+      <td>${n.packetRate}${n.offline?' ⏸':''}</td>
+      <td>${n.anomalyScore}</td>
+      <td>${battLifeDays(n)}d</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ============================= Rescue teams ============================= */
+function dist(a,b){ return Math.sqrt((a.lat-b.lat)**2 + (a.lng-b.lng)**2); }
+function renderRescueList(){
+  const wrap = document.getElementById('rescueList');
+  wrap.innerHTML = RESCUE_TEAMS.map((rt,i)=>{
+    const color = rt.status==='enroute'? '#F2A93B' : '#3FB68B';
+    return `<div class="rescue-team">
+      <span>${rt.name}</span>
+      <span class="status" style="background:${color}22;color:${color}">${t(rt.status)}</span>
+      <button class="btn" style="padding:4px 8px;font-size:10px;" data-rt="${i}">${t('dispatch')}</button>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-rt]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const idx = +btn.getAttribute('data-rt');
+      const n = getSelectedNode();
+      RESCUE_TEAMS[idx].status = 'enroute';
+      addLog('INFO', `${RESCUE_TEAMS[idx].name} dispatched to ${n.name}`);
+      toast(`🚑 <b>${RESCUE_TEAMS[idx].name}</b> dispatched to ${n.name}`);
+      renderRescueList();
+    };
+  });
+}
+
+/* ============================= Evacuation guidance ============================= */
+function renderEvac(){
+  const n = getSelectedNode();
+  const el = document.getElementById('evacPanel');
+  if(n.threat==='safe' || n.threat==='watch'){
+    el.textContent = t('evacDefault');
+    return;
+  }
+  if(n.type==='hill'){
+    el.innerHTML = `<b>${n.name}</b> — ${n.threat==='critical'?'Evacuate downslope structures immediately.':'Prepare for possible evacuation.'}<br>
+      • Move away from slopes and river banks<br>• Avoid travel on the ${n.state} Ghat road until cleared<br>• Report to nearest relief camp / block office<br>• Do not attempt to cross debris-flow paths`;
+  } else if(n.type==='plains'){
+    el.innerHTML = `<b>${n.name}</b> — ${n.threat==='critical'?'Move to higher ground immediately.':'Monitor water levels closely.'}<br>
+      • Avoid crossing flooded roads or fields<br>• Shift livestock and stored grain to upper floors<br>• Keep mobile charged, follow district control room updates`;
+  } else {
+    el.innerHTML = `<b>${n.name}</b> — ${n.threat==='critical'?'Coastal evacuation advised.':'Coastal watch in effect.'}<br>
+      • Fisherfolk should not venture into open sea<br>• Move away from low-lying coastal colonies<br>• Secure loose structures against wind`;
+  }
+}
+
+/* ============================= Mesh health / offline ============================= */
+function renderMeshHealth(){
+  const n = getSelectedNode();
+  document.getElementById('meshRSSI').textContent = `${Math.round(n.rssi)} dBm`;
+  document.getElementById('packetLoss').textContent = `${n.packetLoss}%`;
+  document.getElementById('signalQ').textContent = signalLabel(n.rssi);
+  document.getElementById('cacheStatus').textContent = n.offline ? 'Cached (stale)' : 'Synced';
+  const bw = document.getElementById('offlineBannerWrap');
+  bw.innerHTML = n.offline ? `<div class="offline-banner">📴 ${n.name} is OFFLINE — showing last cached readings</div>` : '';
+}
+
+/* ============================= Master refresh ============================= */
+function refreshSelectedPanels(){
+  renderGauges(); updateCharts(); renderEvac(); renderMeshHealth();
+  updateForecast(); renderReasoning(); renderImpact();
+  renderAICommandCenter(); renderFusionTable(); renderEvacZone();
+  renderFalseAlarmShield(); renderRescuePriorityList(); renderEdgeStatus();
+}
+function updateNetworkHero(){
+  const avg = Math.round(nodes.reduce((a,n)=>a+n.risk,0)/nodes.length);
+  const threat = threatFromRisk(avg);
+  document.getElementById('networkRiskScore').textContent = avg;
+  const badge = document.getElementById('networkThreatBadge');
+  badge.className = 'threat-badge tb-'+threat;
+  document.getElementById('networkThreatLabel').textContent = t(threat).toUpperCase();
+}
+function updateUI(){
+  updateNetworkHero();
+  renderNodeList();
+  updateMap();
+  renderStatusGrid();
+  refreshSelectedPanels();
+  updateTicker();
+}
+
+/* ============================= Log rendering ============================= */
+function renderLog(){
+  const wrap = document.getElementById('logWrap');
+  const filtered = logFilter==='ALL'? logEntries : logEntries.filter(l=>l.level===logFilter);
+  wrap.innerHTML = filtered.slice(0,80).map(l=>`<div class="log-line"><span class="log-time">${l.time}</span><span class="log-lvl lvl-${l.level}">${l.level}</span><span>${l.message}</span></div>`).join('');
+}
+document.querySelectorAll('.log-filters button').forEach(btn=>{
+  btn.onclick = function(){
+    document.querySelectorAll('.log-filters button').forEach(b=>b.classList.remove('active'));
+    this.classList.add('active');
+    logFilter = this.getAttribute('data-lvl');
+    renderLog();
+  };
+});
+document.getElementById('exportCsv').onclick = ()=>{
+  const rows = [['Time','Level','Message'], ...logEntries.map(l=>[l.time,l.level,l.message])];
+  const csv = rows.map(r=>r.map(c=>`"${(c+'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  downloadBlob(csv, 'meghdrishti_audit_log.csv', 'text/csv');
+  addLog('INFO', 'Audit log exported to CSV');
+};
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ============================= PDF report ============================= */
+document.getElementById('generatePdf').onclick = ()=>{
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('MEGHDRISHTI — Incident Report', 14, 18);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 14, 25);
+  doc.text(`Network average risk: ${Math.round(nodes.reduce((a,n)=>a+n.risk,0)/nodes.length)}`, 14, 31);
+
+  let y = 42;
+  doc.setFont('helvetica','bold'); doc.text('Node', 14, y); doc.text('State', 70, y); doc.text('Risk', 115, y); doc.text('Threat', 135, y); doc.text('Battery', 165, y);
+  doc.setFont('helvetica','normal'); y+=6;
+  nodes.slice().sort((a,b)=>b.risk-a.risk).forEach(n=>{
+    doc.text(n.name, 14, y); doc.text(n.state, 70, y); doc.text(String(n.risk), 115, y); doc.text(n.threat.toUpperCase(), 135, y); doc.text(n.batt.toFixed(1)+'V', 165, y);
+    y+=6;
+    if(y>270){ doc.addPage(); y=20; }
+  });
+
+  y += 6;
+  doc.setFont('helvetica','bold'); doc.text('Recent critical/warning events:', 14, y); y+=6;
+  doc.setFont('helvetica','normal');
+  logEntries.filter(l=>l.level!=='INFO').slice(0,15).forEach(l=>{
+    doc.text(`[${l.time}] ${l.level}: ${l.message}`, 14, y); y+=5.5;
+    if(y>280){ doc.addPage(); y=20; }
+  });
+
+  doc.save('meghdrishti_incident_report.pdf');
+  addLog('INFO', 'PDF incident report generated and downloaded');
+  toast('📄 Incident report PDF downloaded');
+};
+
+/* ============================= Dispatchers (simulated) ============================= */
+// NOTE: These are SIMULATED alerts for the demo. Actually sending real SMS/calls to
+// real police stations/DDMA offices needs a licensed telecom gateway (e.g. Twilio,
+// MSG91) wired up with the district's real registered number — that requires the
+// authority's real contact + your own API account/credentials, and can't be safely
+// hard-coded into a public HTML file. What IS real below: the pan-India emergency
+// numbers (112 Police, 1078 NDMA, 1070 State EOC, 108 Ambulance, 101 Fire).
+function authorityContacts(n){
+  return {
+    ddma: `${n.name} District Disaster Management Authority (DDMA) Control Room`,
+    police: `${n.state} Police Control Room — dial 100 / 112`,
+    stateEOC: `${n.state} State Emergency Operations Centre — dial 1070`,
+    ndma: 'National Disaster Management Authority (NDMA) — dial 1078',
+    fire: 'Fire & Rescue — dial 101', ambulance: 'Ambulance — dial 108'
+  };
+}
+function dispatchAuthorityAlert(n){
+  const c = authorityContacts(n);
+  const hz = (n.hz&&n.hz[0]) ? HAZ_LABEL[n.hz[0]] : 'hazard';
+  addLog('CRITICAL', `AUTO-ALERT queued → ${c.ddma}, ${n.state} Police (100/112), State EOC (1070) re: ${hz} risk at ${n.name}`);
+  toast(`📡 <b>Auto-alert queued</b><br>${n.name} DDMA · Police Control Room · State EOC (1070)<br><span style="font-size:10.5px;opacity:0.8">Simulated — connect a real SMS/voice gateway to send live</span>`, true);
+}
+document.getElementById('telegramDispatch').onclick = ()=>{
+  const n = getSelectedNode();
+  const c = authorityContacts(n);
+  addLog('INFO', `Telegram alert dispatched → ${c.ddma} re: ${n.name}`);
+  toast(`✈ Telegram alert sent — <b>${c.ddma}</b> notified for <b>${n.name}</b>`);
+};
+document.getElementById('smsDispatch').onclick = ()=>{
+  const n = getSelectedNode();
+  const c = authorityContacts(n);
+  addLog('INFO', `SMS dispatched → residents near ${n.name} + ${c.police} + ${c.stateEOC}`);
+  toast(`📱 SMS simulated → residents near <b>${n.name}</b>, ${n.state} Police, and State EOC (1070)`);
+};
+
+/* ============================= Threshold / control bindings ============================= */
+document.getElementById('speedSlider').oninput = function(){
+  simSpeed = +this.value; document.getElementById('speedVal').textContent = simSpeed+'x';
+  restartTicker();
+};
+document.getElementById('soilThresh').oninput = function(){ thresholds.soil=+this.value; document.getElementById('soilThreshVal').textContent=this.value+'%'; };
+document.getElementById('vibThresh').oninput = function(){ thresholds.vib=+this.value; document.getElementById('vibThreshVal').textContent=(+this.value).toFixed(1); };
+document.getElementById('rainThresh').oninput = function(){ thresholds.rain=+this.value; document.getElementById('rainThreshVal').textContent=this.value+'mm/h'; };
+
+document.getElementById('injectLandslide').onclick = ()=>{
+  const hillNodes = nodes.filter(n=>n.type==='hill' && !n.offline);
+  const n = hillNodes[Math.floor(Math.random()*hillNodes.length)];
+  n.injectType='landslide'; n.injectTicks=14;
+  addLog('WARN', `Landslide scenario injected at ${n.name}`);
+  toast(`⛰ Landslide scenario injected at <b>${n.name}</b>`);
+};
+document.getElementById('injectFlood').onclick = ()=>{
+  const plainsNodes = nodes.filter(n=>(n.type==='plains'||n.type==='coastal') && !n.offline);
+  const n = plainsNodes[Math.floor(Math.random()*plainsNodes.length)];
+  n.injectType='flood'; n.injectTicks=14;
+  addLog('WARN', `Flash flood scenario injected at ${n.name}`);
+  toast(`🌊 Flash flood scenario injected at <b>${n.name}</b>`);
+};
+document.getElementById('hwReset').onclick = ()=>{
+  const n = getSelectedNode();
+  if(n.threat==='critical' || n.threat==='warning'){
+    livesProtectedCounter += n.population;
+  }
+  const b = baseline(n.type);
+  Object.assign(n, b, {risk:0, injectTicks:0, injectType:null, offline:false, lastAlertThreat:'safe'});
+  addLog('INFO', `${n.name} manually reset to baseline`);
+  toast(`↺ ${n.name} reset to baseline readings`);
+};
+document.getElementById('battSaver').onclick = function(){
+  const n = getSelectedNode();
+  n.battSaverOn = !n.battSaverOn;
+  this.classList.toggle('active', n.battSaverOn);
+  addLog('INFO', `${n.name} battery saver mode ${n.battSaverOn?'enabled':'disabled'} (reduced sampling)`);
+};
+document.getElementById('offlineSim').onclick = function(){
+  const n = getSelectedNode();
+  n.offline = !n.offline;
+  this.classList.toggle('active', n.offline);
+  addLog(n.offline?'WARN':'INFO', `${n.name} ${n.offline?'went OFFLINE — caching last known readings':'reconnected — cache synced'}`);
+  toast(n.offline? `📴 ${n.name} offline — using cached data` : `📡 ${n.name} back online`);
+};
+document.getElementById('hwFeedToggle').onclick = function(){
+  liveFeedOn = !liveFeedOn;
+  this.innerHTML = liveFeedOn ? '📡 <span data-i18n="liveFeed">'+t('liveFeed')+'</span>' : '📡 <span data-i18n="liveFeed">Live Feed: PAUSED</span>';
+  this.classList.toggle('active', !liveFeedOn);
+  restartTicker();
+};
+
+/* ============================= Ticker control ============================= */
+let tickerHandle = null;
+function restartTicker(){
+  if(tickerHandle) clearInterval(tickerHandle);
+  if(!liveFeedOn) return;
+  tickerHandle = setInterval(tick, 2000/simSpeed);
+}
+
+/* ============================= Clock ============================= */
+setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN',{hour12:false})+' IST'; }, 1000);
+
+/* ============================= Demo mode (Judge Demo) ============================= */
+function wait(ms){ return new Promise(res=>setTimeout(res,ms)); }
+async function runDemoMode(){
+  const demoBtn = document.getElementById('demoModeBtn');
+  demoBtn.disabled = true; demoBtn.style.opacity=0.6;
+  addLog('INFO', '🎬 Judge Demo Mode started');
+  toast('▶ Judge Demo Mode running — 45s scripted walkthrough');
+
+  selectedNodeId = 'n1'; renderNodeList(); refreshSelectedPanels();
+  map.flyTo([30.83,78.53], 8, {duration:1.5});
+  await wait(2000);
+
+  document.getElementById('injectLandslide').click();
+  const n1 = nodes.find(x=>x.id==='n1');
+  n1.injectType='landslide'; n1.injectTicks=16;
+  await wait(8000);
+
+  toast('📈 Risk score climbing on Dharali node...');
+  await wait(6000);
+
+  document.getElementById('telegramDispatch').click();
+  await wait(1500);
+  document.getElementById('smsDispatch').click();
+  await wait(2000);
+
+  RESCUE_TEAMS[0].status='enroute'; renderRescueList();
+  addLog('INFO', 'NDRF Bn-4 auto-dispatched during demo sequence');
+  toast('🚑 NDRF Bn-4 dispatched to Dharali');
+  await wait(4000);
+
+  document.getElementById('generatePdf').click();
+  await wait(3000);
+
+  toast('✅ Demo sequence complete — resetting node');
+  await wait(2500);
+  document.getElementById('hwReset').click();
+  RESCUE_TEAMS[0].status='standby'; renderRescueList();
+
+  demoBtn.disabled=false; demoBtn.style.opacity=1;
+  addLog('INFO', '🎬 Judge Demo Mode finished');
+}
+document.getElementById('demoModeBtn').onclick = runDemoMode;
+
+/* ============================= Boot splash sequence ============================= */
+const BOOT_LINES = [
+  '> Initializing ESP-NOW mesh backbone…',
+  '> Connecting to 8 sensor nodes across 7 states…',
+  '> Loading GIS layers (OpenStreetMap / CARTO dark)…',
+  '> Calibrating multi-hazard risk models…',
+  '> Syncing edge TinyML anomaly baselines…',
+  '> MEGHDRISHTI online. Welcome, Operator.'
+];
+function runBootSequence(){
+  const log = document.getElementById('bootLog');
+  BOOT_LINES.forEach((line,i)=>{
+    setTimeout(()=>{
+      const d = document.createElement('div');
+      d.textContent = line;
+      log.appendChild(d);
+    }, i*380);
+  });
+  setTimeout(dismissBoot, 2600);
+}
+function dismissBoot(){
+  const el = document.getElementById('bootSplash');
+  if(el.classList.contains('hidden')) return;
+  el.classList.add('hidden');
+}
+document.getElementById('bootSplash').addEventListener('click', dismissBoot);
+
+/* ============================= Ticker ============================= */
+function updateTicker(){
+  const parts = nodes.map(n=> `${n.name}: ${t(n.threat).toUpperCase()} (${n.risk})`);
+  const text = parts.join('   ·   ');
+  document.getElementById('tickerTrack').innerHTML = `<span>🇮🇳 NATIONAL RISK FEED — ${text}</span><span>🇮🇳 NATIONAL RISK FEED — ${text}</span>`;
+}
+
+/* ============================= AI Risk Forecast ============================= */
+let forecastChart;
+function initForecastChart(){
+  const ctx = document.getElementById('forecastChart').getContext('2d');
+  forecastChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels:[], datasets:[
+      {label:'Observed', data:[], borderColor:'#5B8DEF', borderWidth:2, pointRadius:0, tension:0.3},
+      {label:'Projected', data:[], borderColor:'#F2A93B', borderDash:[5,4], borderWidth:2, pointRadius:0, tension:0.3},
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{labels:{color:'#8CA0B3', boxWidth:10, font:{size:9}}}},
+      scales:{
+        x:{ticks:{display:false}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{min:0, max:100, ticks:{color:'#8CA0B3', font:{size:9}}, grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+}
+function linearSlope(values){
+  const n = values.length; if(n<2) return 0;
+  const xs = values.map((_,i)=>i);
+  const xMean = xs.reduce((a,b)=>a+b,0)/n, yMean = values.reduce((a,b)=>a+b,0)/n;
+  let num=0, den=0;
+  for(let i=0;i<n;i++){ num += (xs[i]-xMean)*(values[i]-yMean); den += (xs[i]-xMean)**2; }
+  return den===0?0:num/den;
+}
+function updateForecast(){
+  const n = getSelectedNode();
+  const recent = n.history.slice(-12).map(h=>h.risk);
+  if(recent.length<2){ return; }
+  const slope = linearSlope(recent);
+  const lastVal = recent[recent.length-1];
+  const projected = [];
+  for(let i=1;i<=6;i++){ projected.push(clamp(Math.round(lastVal + slope*i*2), 0, 100)); }
+  const labels = [...recent.map((_,i)=>'t-'+(recent.length-i)), ...projected.map((_,i)=>'+'+(i+1)+'h')];
+  const observedData = [...recent, ...Array(6).fill(null)];
+  const projectedData = [...Array(recent.length-1).fill(null), lastVal, ...projected];
+  forecastChart.data.labels = labels;
+  forecastChart.data.datasets[0].data = observedData;
+  forecastChart.data.datasets[1].data = projectedData;
+  forecastChart.update('none');
+
+  const finalProj = projected[projected.length-1];
+  const trendWord = slope>0.6? (currentLang==='ta'?'வேகமாக அதிகரிக்கிறது':'rising sharply') : slope>0.1 ? (currentLang==='ta'?'மெதுவாக அதிகரிக்கிறது':'rising gradually') : slope< -0.3 ? (currentLang==='ta'?'குறைந்து வருகிறது':'declining') : (currentLang==='ta'?'நிலையானது':'stable');
+  document.getElementById('forecastNote').innerHTML = `<b>${n.name}</b>: trend is ${trendWord}. Projected risk in +6h (simulated): <b style="color:${THREAT_COLOR[threatFromRisk(finalProj)]}">${finalProj}</b> (${t(threatFromRisk(finalProj))}).`;
+}
+
+/* ============================= AI Reasoning (explainability) ============================= */
+function riskBreakdown(n){
+  let comps = [];
+  if(n.type==='hill'){
+    comps = [
+      {label:'Vibration (landslide signature)', pct:(n.vib/10*100), weight:40},
+      {label:'Soil moisture saturation', pct:(n.soil/100*100), weight:35},
+      {label:'Rain rate', pct:(n.rain/100*100), weight:15},
+      {label:'Gas / air anomaly', pct:(n.gas/300*100), weight:10},
+    ];
+  } else if(n.type==='plains'){
+    comps = [
+      {label:'Rain rate (flood driver)', pct:(n.rain/100*100), weight:45},
+      {label:'Soil moisture saturation', pct:(n.soil/100*100), weight:30},
+      {label:'Gas / air anomaly', pct:(n.gas/300*100), weight:15},
+      {label:'Ground vibration', pct:(n.vib/10*100), weight:10},
+    ];
+  } else {
+    comps = [
+      {label:'Rain rate (coastal surge)', pct:(n.rain/100*100), weight:40},
+      {label:'Barometric pressure drop', pct:((1013-n.pressure)/40*100), weight:20},
+      {label:'Soil moisture saturation', pct:(n.soil/100*100), weight:25},
+      {label:'Gas / air anomaly', pct:(n.gas/300*100), weight:15},
+    ];
+  }
+  comps.forEach(c=> c.contribution = Math.round((clamp(c.pct,0,100)/100) * c.weight));
+  return comps.sort((a,b)=>b.contribution-a.contribution);
+}
+function renderReasoning(){
+  const n = getSelectedNode();
+  const comps = riskBreakdown(n);
+  const wrap = document.getElementById('reasoningWrap');
+  if(n.threat==='safe'){
+    wrap.innerHTML = `<div style="font-size:12px;color:var(--text-dim)">All sensor readings at ${n.name} are within safe range. No dominant risk factor currently.</div>`;
+    return;
+  }
+  wrap.innerHTML = comps.slice(0,3).map(c=>{
+    const color = c.contribution>25? THREAT_COLOR.critical : c.contribution>15? THREAT_COLOR.warning : THREAT_COLOR.watch;
+    return `<div class="reason-item">
+      <div class="row"><span>${c.label}</span><b style="color:${color}">+${c.contribution} pts</b></div>
+      <div class="reason-bar"><div class="reason-bar-fill" style="width:${clamp(c.pct,0,100)}%;background:${color}"></div></div>
+    </div>`;
+  }).join('') + `<div style="font-size:10.5px;color:var(--text-faint);margin-top:4px;">Edge TinyML anomaly score: <b style="color:var(--text)">${n.anomalyScore}/100</b> — computed on-device from sensor variance.</div>`;
+}
+
+/* ============================= Community Impact Estimator ============================= */
+function renderImpact(){
+  const n = getSelectedNode();
+  const grid = document.getElementById('impactGrid');
+  const atRisk = n.threat==='critical' ? n.population : n.threat==='warning' ? Math.round(n.population*0.4) : 0;
+  grid.innerHTML = `
+    <div class="impact-stat"><div class="num">${n.population.toLocaleString('en-IN')}</div><div class="lbl">Population in node coverage zone</div></div>
+    <div class="impact-stat"><div class="num" style="color:${atRisk?THREAT_COLOR.critical:THREAT_COLOR.safe}">${atRisk.toLocaleString('en-IN')}</div><div class="lbl">Estimated people in current risk zone</div></div>
+    <div class="impact-stat"><div class="num">~25–40</div><div class="lbl">Minutes of early-warning lead time vs. manual reporting</div></div>
+    <div class="impact-stat"><div class="num">${livesProtectedCounter.toLocaleString('en-IN')}</div><div class="lbl">Cumulative people covered by resolved alerts this session</div></div>
+  `;
+}
+
+/* ============================= 1. AI Command Center ============================= */
+function fusionConfidence(n){
+  // Heuristic confidence: penalize weak battery, weak signal, high anomaly variance, offline/stale data.
+  let c = 97;
+  if(n.batt < 11.5) c -= 8;
+  if(n.rssi < -80) c -= 6;
+  c -= clamp(Math.abs(n.anomalyScore-40)/8, 0, 12);
+  if(n.offline) c -= 25;
+  return clamp(Math.round(c), 40, 99);
+}
+function predictedWindow(n){
+  const recent = n.history.slice(-12).map(h=>h.risk);
+  if(recent.length<2) return {label:'Insufficient trend data', mins:null};
+  const slope = linearSlope(recent);
+  if(slope<=0.05) return {label:'No imminent escalation projected', mins:null};
+  const stepsPerHour = 30/simSpeed; // approx ticks/hour at 1x (2s ticks -> 1800 ticks/hr, scaled down for demo feel)
+  const remaining = clamp(85 - n.risk, 0, 100);
+  const stepsToThreshold = slope>0 ? remaining/slope : Infinity;
+  const mins = clamp(Math.round(stepsToThreshold * 2), 8, 180);
+  return {label:`High probability within ${mins}–${mins+15} min`, mins};
+}
+function renderAICommandCenter(){
+  const n = getSelectedNode();
+  const comps = riskBreakdown(n);
+  const top = comps[0];
+  const conf = fusionConfidence(n);
+  const pred = predictedWindow(n);
+  const recAction = n.threat==='critical' ? `Evacuate zone around ${n.name} immediately` :
+    n.threat==='warning' ? `Prepare evacuation readiness for ${n.name}` :
+    n.threat==='watch' ? `Monitor ${n.name} closely — no action needed yet` :
+    `No action needed — ${n.name} within safe range`;
+  document.getElementById('accNodeLabel').textContent = `${n.name} · ${n.state}`;
+  document.getElementById('accGrid').innerHTML = `
+    <div class="acc-stat acc-risk"><div class="k">Risk</div><div class="v" style="color:${THREAT_COLOR[n.threat]}">${n.risk}/100 — ${t(n.threat).toUpperCase()}</div></div>
+    <div class="acc-stat"><div class="k">Prediction</div><div class="v" style="font-size:12.5px;">${pred.label}</div></div>
+    <div class="acc-stat"><div class="k">Confidence</div><div class="v" style="color:var(--accent-2)">${conf}%</div></div>
+    <div class="acc-stat"><div class="k">Main Cause</div><div class="v" style="font-size:12.5px;">${top?top.label:'—'}</div></div>
+    <div class="acc-stat"><div class="k">Recommended Action</div><div class="v" style="font-size:12.5px;color:var(--accent)">${recAction}</div></div>
+  `;
+  document.getElementById('accFlow').innerHTML = [
+    'Sensors', 'Edge AI', 'Risk Fusion', `Prediction (${pred.mins?pred.mins+'m':'stable'})`, n.threat==='safe'?'Monitoring':'Alert', n.threat==='critical'?'Rescue Dispatch':'Standby'
+  ].map((s,i,arr)=> `<span class="node">${s}</span>` + (i<arr.length-1?'<span class="arrow">→</span>':'')).join('');
+}
+
+/* ============================= 2. Multi-sensor fusion table ============================= */
+const SENSOR_UNIT = {'Rain rate (flood driver)':'mm/h','Rain rate':'mm/h','Vibration (landslide signature)':'g','Ground vibration':'g','Soil moisture saturation':'%','Gas / air anomaly':'ppm','Barometric pressure drop':'hPa Δ'};
+function fusionRawReading(label, n){
+  if(label.includes('Rain')) return `${Math.round(n.rain)} mm/h`;
+  if(label.includes('Vibration')) return `${n.vib.toFixed(1)} g`;
+  if(label.includes('Soil')) return `${Math.round(n.soil)}%`;
+  if(label.includes('Gas')) return `${Math.round(n.gas)} ppm`;
+  if(label.includes('pressure')) return `${Math.round(1013-n.pressure)} hPa`;
+  return '—';
+}
+function renderFusionTable(){
+  const n = getSelectedNode();
+  const comps = riskBreakdown(n);
+  const totalContribution = comps.reduce((a,c)=>a+c.contribution,0) || 1;
+  const body = document.querySelector('#fusionTable tbody');
+  body.innerHTML = comps.map(c=>{
+    const sharePct = Math.round((c.contribution/totalContribution)*100);
+    const color = c.contribution>25? THREAT_COLOR.critical : c.contribution>15? THREAT_COLOR.warning : THREAT_COLOR.watch;
+    return `<tr>
+      <td>${c.label.replace(/\s*\(.*\)/,'')}<div class="fusion-bar-mini"><div class="fusion-bar-fill" style="width:${clamp(c.pct,0,100)}%;background:${color}"></div></div></td>
+      <td style="font-family:var(--mono);white-space:nowrap;">${fusionRawReading(c.label,n)}</td>
+      <td style="font-family:var(--mono);font-weight:700;color:${color};text-align:right;">${sharePct}%</td>
+    </tr>`;
+  }).join('');
+  const conf = fusionConfidence(n);
+  const confEl = document.getElementById('fusionConfidence');
+  confEl.textContent = conf+'%';
+  confEl.style.color = conf>=85?'var(--safe)':conf>=65?'var(--watch)':'var(--critical)';
+}
+
+/* ============================= 3. What-if simulator ============================= */
+function whatIfPreview(kind){
+  const n = getSelectedNode();
+  const clone = {...n};
+  let scenarioLabel = '';
+  if(kind==='rain20'){ clone.rain = clamp(n.rain*1.2, 0, 120); scenarioLabel = 'If rainfall increases by +20%'; }
+  else if(kind==='vibup'){ clone.vib = clamp(n.vib+2.2, 0, 10); scenarioLabel = 'If vibration increases sharply'; }
+  else if(kind==='rainstop'){ clone.rain = 0; scenarioLabel = 'If rainfall stops entirely'; }
+  else if(kind==='offline'){
+    const newConf = fusionConfidence({...n, offline:true});
+    const oldConf = fusionConfidence(n);
+    document.getElementById('whatifResult').innerHTML = `<b>If ${n.name} goes offline</b> → Fusion confidence: <b>${oldConf}%</b> <span class="whatif-arrow">→</span> <b style="color:var(--critical)">${newConf}%</b>. Risk score freezes at last cached value (${n.risk}) until reconnection.`;
+    return;
+  }
+  const newRisk = computeRisk(clone);
+  const oldThreat = n.threat, newThreat = threatFromRisk(newRisk);
+  document.getElementById('whatifResult').innerHTML = `<b>${scenarioLabel}</b> → Risk: <b style="color:${THREAT_COLOR[oldThreat]}">${n.risk}</b> <span class="whatif-arrow">→</span> <b style="color:${THREAT_COLOR[newThreat]}">${newRisk}</b> (${t(newThreat).toUpperCase()}). This is a preview only — live sensors are unaffected.`;
+}
+document.getElementById('whatifGrid').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  whatIfPreview(btn.getAttribute('data-whatif'));
+});
+
+/* ============================= 4. Evacuation zone + safe route ============================= */
+function nearestRescueTeam(n){
+  let best=null, bestD=Infinity;
+  RESCUE_TEAMS.forEach(rt=>{ const d=dist(n,rt)*111; if(d<bestD){ bestD=d; best=rt; } });
+  return {team:best, km:bestD};
+}
+function renderEvacZone(){
+  const n = getSelectedNode();
+  const zoneRow = document.getElementById('evacZoneRow');
+  const zone = n.threat==='critical' ? 'immediate' : (n.threat==='warning'||n.threat==='watch') ? 'ready' : 'safe';
+  zoneRow.innerHTML = `
+    <span class="zone-chip zc-safe${zone==='safe'?' active':''}">🟢 SAFE ZONE</span>
+    <span class="zone-chip zc-ready${zone==='ready'?' active':''}">🟡 EVACUATION READY</span>
+    <span class="zone-chip zc-immediate${zone==='immediate'?' active':''}">🔴 IMMEDIATE EVACUATION</span>
+  `;
+  const flowEl = document.getElementById('evacRouteFlow');
+  if(zone==='safe'){ flowEl.innerHTML = ''; flowEl.style.display='none'; return; }
+  flowEl.style.display='block';
+  const {team, km} = nearestRescueTeam(n);
+  flowEl.innerHTML = `<b>${zone==='immediate'?'CRITICAL AREA 🔴':'WATCH AREA 🟡'}</b><br>↓ EVACUATION ROUTE ↓<br><b>Nearest Shelter 🏠</b> — district relief camp<br>↓<br><b>${team?team.name:'Rescue team'} 🚑</b> — ~${Math.round(km)} km away`;
+}
+
+/* ============================= 5. False alarm shield ============================= */
+function renderFalseAlarmShield(){
+  const n = getSelectedNode();
+  const checks = [
+    {label:'Rainfall above threshold', hit: n.rain >= thresholds.rain},
+    {label:'Soil moisture above threshold', hit: n.soil >= thresholds.soil},
+    {label:'Vibration above threshold', hit: n.vib >= thresholds.vib},
+  ];
+  const agree = checks.filter(c=>c.hit).length;
+  const body = document.getElementById('falseAlarmBody');
+  body.innerHTML = checks.map(c=>`<div class="false-alarm-row"><span>${c.label}</span><span class="${c.hit?'fa-check':'fa-cross'}">${c.hit?'✅':'❌'}</span></div>`).join('') +
+    `<div class="false-alarm-row" style="border-bottom:none;"><span>${agree>=2?'3+ sensors agree':agree+' of 3 sensors agree'}</span><span class="${agree>=2?'fa-check':'fa-cross'}">${agree>=2?'✅':'❌'}</span></div>`;
+  const faProb = agree>=3?4 : agree===2?18 : agree===1?52 : 85;
+  document.getElementById('falseAlarmProb').textContent = `${faProb}% FA risk`;
+  const verdict = document.createElement('div');
+  verdict.className = 'fa-verdict '+(agree>=2?'validated':'unvalidated');
+  verdict.textContent = agree>=2 ? '✅ ALERT VALIDATED — multiple sensors confirm' : '— awaiting multi-sensor confirmation —';
+  body.appendChild(verdict);
+}
+
+/* ============================= 6. AI rescue priority ============================= */
+function renderRescuePriorityList(){
+  const wrap = document.getElementById('rescuePriorityList');
+  const atRisk = nodes.filter(n=>n.threat==='critical' || n.threat==='warning')
+    .sort((a,b)=> b.risk - a.risk).slice(0,3);
+  if(!atRisk.length){ wrap.innerHTML = '<div class="timeline-empty">No nodes currently above WARNING — priority queue is empty.</div>'; return; }
+  wrap.innerHTML = atRisk.map((n,i)=>{
+    const {team, km} = nearestRescueTeam(n);
+    const etaMin = Math.round((km/40)*60); // assume ~40 km/h average response speed
+    const pClass = i===0?'p1':i===1?'p2':'p3';
+    return `<div class="priority-item">
+      <div class="priority-head"><span class="priority-badge ${pClass}">PRIORITY #${i+1}</span><span style="font-family:var(--mono);font-weight:700;color:${THREAT_COLOR[n.threat]}">${n.risk} risk</span></div>
+      <div><b>${n.name}</b> · ${n.state}</div>
+      <div class="priority-meta"><span>👥 ${n.population.toLocaleString('en-IN')}</span><span>📍 ${Math.round(km)} km</span><span>⏱ ETA ${etaMin} min</span></div>
+      <div class="priority-team">OPTIMAL TEAM → ${team?team.name:'—'}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ============================= 7. Incident timeline ============================= */
+function renderTimeline(){
+  const wrap = document.getElementById('timelineWrap');
+  const events = logEntries.filter(l=>l.level!=='INFO').slice(0,8).slice().reverse();
+  if(!events.length){ wrap.innerHTML = '<div class="timeline-empty">No warnings or critical events logged yet this session.</div>'; return; }
+  wrap.innerHTML = events.map(e=>`<div class="timeline-item ${e.level==='CRITICAL'?'tl-crit':'tl-warn'}">
+    <div class="tl-time">${e.time}</div><div class="tl-msg">${e.message}</div>
+  </div>`).join('');
+}
+
+/* ============================= 8. Edge-offline intelligence ============================= */
+function renderEdgeStatus(){
+  const n = getSelectedNode();
+  const internetUp = navigator.onLine !== false;
+  const cloudUp = internetUp && liveFeedOn;
+  const grid = document.getElementById('edgeStatusGrid');
+  grid.innerHTML = `
+    <div class="edge-status-item"><span>Internet</span><span class="${internetUp?'es-ok':'es-bad'}">${internetUp?'✅':'❌'}</span></div>
+    <div class="edge-status-item"><span>Cloud Sync</span><span class="${cloudUp?'es-ok':'es-bad'}">${cloudUp?'✅':'❌'}</span></div>
+    <div class="edge-status-item"><span>Local Edge AI</span><span class="es-ok">✅</span></div>
+    <div class="edge-status-item"><span>Alert Engine</span><span class="es-ok">✅</span></div>
+    <div class="edge-status-item" style="grid-column:1/-1;"><span>Cached Data (${n.name})</span><span class="${n.offline?'es-bad':'es-ok'}">${n.offline?'⏸ Using cache':'✅ Synced'}</span></div>
+  `;
+}
+
+/* ============================= Voice alert (TTS) ============================= */
+function speakAlert(){
+  if(!('speechSynthesis' in window)){ toast('Speech synthesis not supported in this browser'); return; }
+  const n = getSelectedNode();
+  const evacText = document.getElementById('evacPanel').innerText;
+  const msg = `${n.name}. Threat level: ${n.threat}. ${evacText}`;
+  const utter = new SpeechSynthesisUtterance(msg);
+  utter.lang = currentLang==='ta' ? 'ta-IN' : 'en-IN';
+  utter.rate = 0.95;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utter);
+}
+document.getElementById('voiceAlertBtn').onclick = speakAlert;
+
+/* ============================= Mesh topology lines ============================= */
+let meshLines = [];
+function initMeshTopology(){
+  meshLines.forEach(l=>map.removeLayer(l));
+  meshLines = [];
+  nodes.forEach(a=>{
+    const distances = nodes.filter(b=>b.id!==a.id).map(b=>({b, d:dist(a,b)})).sort((x,y)=>x.d-y.d).slice(0,2);
+    distances.forEach(({b})=>{
+      const line = L.polyline([[a.lat,a.lng],[b.lat,b.lng]], {color:'#5B8DEF', weight:1, opacity:0.35, dashArray:'2 6'});
+      line.addTo(map);
+      meshLines.push(line);
+    });
+  });
+}
+function pulseMeshTopology(){
+  meshLines.forEach(l=>{
+    if(l._path){ l._path.style.strokeDashoffset = (Date.now()/80)%20; }
+  });
+}
+
+/* ============================= Hazard Outlook: TN Districts + India States ============================= */
+// Hazard types: landslide, flood, forestfire, cyclone, gasleak, pollution
+// riskMonths = months (1-12) of historically elevated activity for the PRIMARY hazard, grounded in known seasonal patterns
+// note = grounded in real 2023-25 reported incidents/patterns (see chat sources)
+const TN_DISTRICTS = [
+ {name:'Ariyalur', hz:['flood','pollution'], note:'Cauvery-basin flooding in low-lying tracts; cement/limestone quarry dust pollution around Sendurai belt.', lat:11.14, lng:79.08, months:[10,11,12]},
+ {name:'Chengalpattu', hz:['flood','cyclone'], note:'Chennai-suburb belt hit hard by NE monsoon and Bay of Bengal cyclones (Michaung 2023 landfall zone).', lat:12.69, lng:79.98, months:[10,11,12]},
+ {name:'Chennai', hz:['flood','cyclone','gasleak'], note:'Repeated urban flooding (2015, 2023 Michaung); Manali/Ennore petrochemical corridor has a history of ammonia leaks (Ennore, Dec 2023).', lat:13.08, lng:80.27, months:[10,11,12]},
+ {name:'Coimbatore', hz:['forestfire','landslide'], note:'Western Ghats foothill fires during dry months; landslide risk in Valparai/Marudhamalai hill tracts during SW monsoon.', lat:11.02, lng:76.97, months:[2,3,4,5]},
+ {name:'Cuddalore', hz:['gasleak','cyclone'], note:'Neyveli thermal-plant boiler blast (2020, twice in 2 months) and SIPCOT chemical belt; cyclone landfall zone (Michaung 2023).', lat:11.75, lng:79.75, months:[10,11,12]},
+ {name:'Dharmapuri', hz:['forestfire'], note:'Dry deciduous hill forests (Theerthamalai) prone to summer fires; drought-stressed agriculture.', lat:12.13, lng:78.16, months:[2,3,4,5]},
+ {name:'Dindigul', hz:['landslide','forestfire'], note:'Kodaikanal hill slopes see landslip/road-collapse during heavy SW monsoon spells; shola-grassland fire risk in dry months.', lat:10.36, lng:77.98, months:[6,7,8,9]},
+ {name:'Erode', hz:['forestfire','flood'], note:'Sathyamangalam Tiger Reserve fire-prone in summer; Cauvery/Bhavani river flooding in NE monsoon.', lat:11.34, lng:77.73, months:[3,4,5]},
+ {name:'Kallakurichi', hz:['flood','forestfire'], note:'Kalvarayan Hills forest-fire risk; flash flooding from hill runoff during heavy rain spells.', lat:11.74, lng:78.96, months:[10,11,12]},
+ {name:'Kanchipuram', hz:['flood','cyclone'], note:'Palar river flooding and cyclone exposure as part of the Chennai metro coastal belt.', lat:12.84, lng:79.7, months:[10,11,12]},
+ {name:'Kanyakumari', hz:['landslide','cyclone'], note:'Western Ghats tail-end landslide pockets; cyclone/high-wave exposure at India\'s southern tip.', lat:8.09, lng:77.57, months:[10,11,12]},
+ {name:'Karur', hz:['pollution','flood'], note:'Noyyal/Amaravathi river pollution from textile dyeing units; seasonal river flooding.', lat:10.96, lng:78.08, months:[10,11]},
+ {name:'Krishnagiri', hz:['forestfire'], note:'Hosur hill-forest fire risk in peak summer; recurring drought stress.', lat:12.52, lng:78.22, months:[2,3,4,5]},
+ {name:'Madurai', hz:['flood','pollution'], note:'Vaigai river flash-flooding after upstream dam releases; urban air/water pollution load.', lat:9.93, lng:78.12, months:[10,11]},
+ {name:'Mayiladuthurai', hz:['flood','cyclone'], note:'Cauvery delta district — chronic waterlogging and cyclone landfall exposure.', lat:11.1, lng:79.65, months:[10,11,12]},
+ {name:'Nagapattinam', hz:['cyclone','flood'], note:'Among TN\'s most cyclone-exposed coasts (2004 tsunami-affected belt); repeated NE-monsoon flooding.', lat:10.77, lng:79.84, months:[10,11,12]},
+ {name:'Namakkal', hz:['pollution','forestfire'], note:'Dense poultry-industry effluent pollution; Kolli Hills forest-fire fringe risk.', lat:11.22, lng:78.17, months:[2,3,4]},
+ {name:'Nilgiris', hz:['landslide','forestfire'], note:'283 landslide-prone spots flagged near Ooty in Aug 2025 downpour (NDRF deployed); major forest fire destroyed ~1,000 acres near Mudumalai/Gudalur (Apr 2025).', lat:11.41, lng:76.7, months:[6,7,8,9]},
+ {name:'Perambalur', hz:['flood','pollution'], note:'Cement-belt dust pollution; seasonal low-lying flood pockets.', lat:11.23, lng:78.88, months:[10,11]},
+ {name:'Pudukkottai', hz:['flood'], note:'Drought-prone plains with flash flooding in heavy NE-monsoon spells.', lat:10.38, lng:78.82, months:[10,11]},
+ {name:'Ramanathapuram', hz:['cyclone'], note:'Palk Strait coastal belt exposed to cyclones and storm surge.', lat:9.37, lng:78.83, months:[10,11,12]},
+ {name:'Ranipet', hz:['pollution'], note:'Palar-basin tannery/chemical belt — repeatedly flagged among India\'s most groundwater-contaminated industrial zones.', lat:12.93, lng:79.33, months:[1,2,3,4,5,6,7,8,9,10,11,12]},
+ {name:'Salem', hz:['forestfire','pollution'], note:'Yercaud/Kolli hill-forest fires in summer; steel-industry air pollution load.', lat:11.66, lng:78.15, months:[2,3,4,5]},
+ {name:'Sivaganga', hz:['flood'], note:'Drought-prone belt with flash-flood pockets during heavy NE-monsoon bursts.', lat:9.85, lng:78.48, months:[10,11]},
+ {name:'Tenkasi', hz:['landslide','flood'], note:'Western Ghats/Courtallam falls belt — flash floods and slope failures in heavy monsoon spells.', lat:8.96, lng:77.31, months:[6,7,8,9,10]},
+ {name:'Thanjavur', hz:['flood'], note:'Cauvery delta "rice bowl" — chronic waterlogging in NE monsoon.', lat:10.79, lng:79.14, months:[10,11,12]},
+ {name:'Theni', hz:['landslide','forestfire'], note:'Western Ghats/Kerala-border hill tracts (Kumily route) — slope instability and dry-season fires.', lat:10.01, lng:77.48, months:[6,7,8,9]},
+ {name:'Thoothukudi', hz:['gasleak','cyclone'], note:'Major industrial-port belt; ammonia leak reported at a seafood unit (Jul 2024); cyclone-exposed coast.', lat:8.76, lng:78.13, months:[10,11,12]},
+ {name:'Tiruchirappalli', hz:['flood','pollution'], note:'Cauvery-belt flooding; urban industrial pollution load.', lat:10.79, lng:78.7, months:[10,11]},
+ {name:'Tirunelveli', hz:['landslide','flood'], note:'Agasthiyamalai (Western Ghats) slope-failure risk; Thamirabarani river flooding.', lat:8.71, lng:77.76, months:[6,7,8,9,10]},
+ {name:'Tirupathur', hz:['forestfire','pollution'], note:'Javadhu hill-forest fire fringe; granite-quarry dust pollution.', lat:12.5, lng:78.57, months:[2,3,4,5]},
+ {name:'Tiruppur', hz:['pollution'], note:'Knitwear dyeing-unit effluent has repeatedly polluted the Noyyal river system — a long-running, well-documented issue.', lat:11.11, lng:77.34, months:[1,2,3,4,5,6,7,8,9,10,11,12]},
+ {name:'Tiruvallur', hz:['flood','gasleak'], note:'Adjacent to the Manali/Ennore industrial corridor; deadliest recorded TN ammonia leak (8 deaths) at a Tiruvallur seafood export unit.', lat:13.14, lng:79.91, months:[10,11,12]},
+ {name:'Tiruvannamalai', hz:['forestfire'], note:'Hill-forest fire risk around the Arunachala/Javadhu ranges in peak summer.', lat:12.23, lng:79.07, months:[2,3,4,5]},
+ {name:'Tiruvarur', hz:['flood','cyclone'], note:'Cauvery delta district — chronic waterlogging and cyclone landfall exposure.', lat:10.77, lng:79.63, months:[10,11,12]},
+ {name:'Vellore', hz:['pollution','forestfire'], note:'Palar-basin tannery pollution; GIS wildfire-risk modelling published (2025) for Vellore\'s reserved forest.', lat:12.92, lng:79.13, months:[2,3,4,5]},
+ {name:'Viluppuram', hz:['flood','forestfire'], note:'Kalvarayan/Gingee hill-fringe fires; flood-prone low-lying tracts in NE monsoon.', lat:11.94, lng:79.49, months:[10,11,12]},
+ {name:'Virudhunagar', hz:['gasleak'], note:'~90% of India\'s firecracker production is based here; fatal factory explosions in Feb 2024 (10 dead) and Jun 2024 (4 dead).', lat:9.59, lng:77.96, months:[1,2,3,4,5,6,7,8,9,10,11,12]},
+];
+
+const INDIA_STATES = [
+ {name:'Uttarkashi/Chamoli', state:'Uttarakhand', hz:['landslide','forestfire'], note:'Cloudburst debris-flow disasters (Joshimath, Kedarnath belt); 150+ forest-fire incidents across the state this season.', lat:30.73, lng:78.44, months:[6,7,8,9]},
+ {name:'Mandi–Kullu–Shimla', state:'Himachal Pradesh', hz:['landslide','flood'], note:'358 lives lost to landslides/floods in 2024 — the highest of any state; 127 landslides recorded in the 2025 monsoon in Mandi-Kullu alone.', lat:31.71, lng:76.93, months:[6,7,8,9]},
+ {name:'Kishtwar–Chasoti', state:'Jammu & Kashmir', hz:['landslide'], note:'Repeated cloudburst-triggered debris flows in the Chenab valley belt.', lat:33.31, lng:75.77, months:[6,7,8,9]},
+ {name:'Wayanad–Idukki', state:'Kerala', hz:['landslide','flood'], note:'2024 Wayanad landslide killed 420+ people — one of India\'s deadliest; Idukki/Western Ghats remain high-risk every monsoon.', lat:11.68, lng:76.13, months:[6,7,8,9]},
+ {name:'Kodagu–Chikkamagaluru', state:'Karnataka', hz:['landslide','flood'], note:'Western Ghats coffee-belt districts see recurring landslides; Karnataka received the highest 2024 NDRF disaster allocation of any state.', lat:12.42, lng:75.74, months:[6,7,8,9]},
+ {name:'Raigad–Irshalwadi', state:'Maharashtra', hz:['landslide','flood'], note:'Sahyadri-belt landslides (Irshalwadi 2023) and Mumbai/Konkan urban flooding.', lat:18.94, lng:73.12, months:[6,7,8,9]},
+ {name:'Junagadh–Vadodara', state:'Gujarat', hz:['flood','cyclone'], note:'Aug 2024 floods affected 464,000+ people statewide; cyclone exposure on the Saurashtra coast.', lat:21.52, lng:70.46, months:[6,7,8,9]},
+ {name:'Yamunanagar–Panipat', state:'Haryana', hz:['flood','pollution'], note:'Yamuna-belt flooding; stubble-burning season drives severe NCR air-pollution spikes.', lat:29.9, lng:76.98, months:[10,11]},
+ {name:'Prayagraj–Gorakhpur', state:'Uttar Pradesh', hz:['flood'], note:'Jul 2024 floods killed 54 and affected 1.8 million people across 923 villages.', lat:25.44, lng:81.84, months:[7,8,9]},
+ {name:'Patna–Darbhanga', state:'Bihar', hz:['flood'], note:'Annual Kosi/Gandak river flooding displaces large populations most monsoons.', lat:25.61, lng:85.14, months:[7,8,9]},
+ {name:'Guwahati–Dibrugarh', state:'Assam', hz:['flood'], note:'Brahmaputra floods killed 109+ in Jun 2024 alone; a near-annual monsoon crisis.', lat:26.14, lng:91.73, months:[6,7,8,9]},
+ {name:'Itanagar–Changlang', state:'Arunachal Pradesh', hz:['flood','landslide'], note:'2024 monsoon landslides destroyed roads and stranded villages, needing army rescue.', lat:27.1, lng:93.62, months:[6,7,8,9]},
+ {name:'Gangtok–Lhonak', state:'Sikkim', hz:['flood','landslide'], note:'2023 South Lhonak glacial-lake outburst flood devastated Teesta valley — a growing Himalayan risk.', lat:27.33, lng:88.61, months:[6,7,8,9]},
+ {name:'Cherrapunji–Shillong', state:'Meghalaya', hz:['flood','landslide'], note:'Among the world\'s highest-rainfall regions; frequent slope failures on hill roads.', lat:25.57, lng:91.88, months:[6,7,8,9]},
+ {name:'Aizawl', state:'Mizoram', hz:['landslide'], note:'Hill-slope construction and heavy rain drive recurring landslides in and around Aizawl.', lat:23.73, lng:92.72, months:[6,7,8,9]},
+ {name:'Kohima', state:'Nagaland', hz:['forestfire','landslide'], note:'Dry-season jhum-cultivation fires and monsoon slope failures on hill terrain.', lat:25.67, lng:94.11, months:[2,3,4]},
+ {name:'Imphal', state:'Manipur', hz:['flood'], note:'Imphal valley flash-flooding during heavy monsoon spells.', lat:24.82, lng:93.94, months:[6,7,8]},
+ {name:'Agartala', state:'Tripura', hz:['flood'], note:'Gomti-river flooding affects low-lying Agartala periodically.', lat:23.84, lng:91.28, months:[6,7,8]},
+ {name:'Puri–Balasore', state:'Odisha', hz:['cyclone','forestfire'], note:'Repeated major cyclone landfalls (Fani, etc.) on this coast; dry deciduous forest-fire risk in summer.', lat:19.8, lng:85.83, months:[10,11,4,5]},
+ {name:'Digha–Kolkata', state:'West Bengal', hz:['cyclone','flood'], note:'Cyclone Remal made landfall here in May 2024, the year\'s first major disaster; Ganga-delta flood exposure.', lat:22.57, lng:88.36, months:[10,11,5]},
+ {name:'Bhopal–Indore', state:'Madhya Pradesh', hz:['gasleak','forestfire'], note:'Site of the 1984 Bhopal gas tragedy — India\'s worst industrial disaster; central-India dry-forest fire belt in summer.', lat:23.26, lng:77.41, months:[2,3,4,5]},
+ {name:'Bastar', state:'Chhattisgarh', hz:['forestfire'], note:'Dense sal-forest belt with heavy summer fire load each dry season.', lat:19.11, lng:81.96, months:[2,3,4,5]},
+ {name:'Ranchi–Jamshedpur', state:'Jharkhand', hz:['forestfire','pollution'], note:'Mining-belt air/water pollution; forest-fire risk in dry deciduous tracts.', lat:23.34, lng:85.31, months:[2,3,4,5]},
+ {name:'Visakhapatnam', state:'Andhra Pradesh', hz:['gasleak','cyclone'], note:'LG Polymers styrene-vapour leak (May 2020) killed 12 — one of India\'s worst chemical disasters; cyclone-exposed coast.', lat:17.69, lng:83.22, months:[10,11,12]},
+ {name:'Hyderabad', state:'Telangana', hz:['flood'], note:'Recurring urban flash-flooding from encroached lake/nala systems during heavy spells.', lat:17.39, lng:78.49, months:[7,8,9]},
+ {name:'Ludhiana–Amritsar', state:'Punjab', hz:['flood','pollution'], note:'Jul-Aug 2025 floods displaced 300,000+ people along the Sutlej; stubble-burning drives winter smog.', lat:30.9, lng:75.85, months:[7,8,9]},
+ {name:'Jaisalmer–Barmer', state:'Rajasthan', hz:['flood'], note:'Traditionally drought-prone, but has seen unusual desert flash-flooding in recent monsoons.', lat:26.92, lng:70.9, months:[7,8]},
+ {name:'North Goa', state:'Goa', hz:['pollution','flood'], note:'Mining-runoff water pollution and coastal monsoon flooding.', lat:15.56, lng:73.8, months:[6,7,8]},
+ {name:'Yamuna Floodplain / Ennore-Manali (Delhi NCR)', state:'Delhi (NCT)', hz:['flood','pollution'], note:'Yamuna repeatedly crosses the danger mark in the monsoon; among the world\'s worst winter air-pollution episodes.', lat:28.66, lng:77.23, months:[7,8,11,12,1]},
+];
+
+const HAZ_LABEL = {landslide:'Landslide', flood:'Flood', forestfire:'Forest fire', cyclone:'Cyclone', gasleak:'Gas leak', pollution:'Pollution'};
+const SAFETY_TIPS = {
+  landslide:['Avoid steep-slope areas and old debris zones during and after heavy rain','Watch for new cracks in ground, walls, or tilting trees/poles — evacuate immediately if seen','Keep a torch, whistle and emergency contacts ready during monsoon months','Follow district administration evacuation orders without delay — don\'t wait to "see how bad it gets"'],
+  flood:['Keep ID documents, cash and medicines in a sealed waterproof bag, packed and ready','Know your nearest relief shelter/high ground before the season starts','Never wade or drive through flowing flood water — depth and current are deceptive','Switch off mains electricity if water starts entering your home','Store at least 3 days of drinking water and dry food during high-alert spells'],
+  forestfire:['Clear dry leaf litter and brush from around hill-area homes before Feb–May','Never start open fires or burn waste in or near forest fringes in dry season','Keep the local forest-department fire helpline number saved','Report smoke or a new fire immediately rather than assuming someone else has'],
+  cyclone:['Track IMD cyclone bulletins once a "depression" is named in the Bay of Bengal/Arabian Sea','Secure loose roofing sheets, hoardings and outdoor objects before landfall','Stock food, water, torch and a charged power bank 24–48 hours ahead','Move away from the coast and low-lying areas as soon as an evacuation order is issued'],
+  gasleak:['Know your area\'s industrial-siren/alert signal and what it means','Move crosswind (perpendicular to wind direction), away from the source — not just "away"','Keep a wet cloth or mask handy for chemical-fume exposure; avoid enclosed low-lying spaces near industrial zones','Report any unusual chemical smell immediately to the TNPCB/state pollution-control helpline'],
+  pollution:['Check local AQI before outdoor exercise, especially for children and the elderly','Use a well-fitted mask on high-pollution/dyeing-effluent-odour days','Avoid drawing groundwater for drinking in known-contaminated tannery/industrial belts — use tested supply instead','Support/monitor local effluent-treatment compliance where you can — these are long-running, well-documented issues'],
+};
+
+let outlookRegionFilter = 'ALL';
+let outlookHazardFilter = 'ALL';
+let expandedCardKey = null;
+
+function buildOutlookData(){
+  const tn = TN_DISTRICTS.map(d=>({key:'TN-'+d.name, region:'TN', name:d.name, state:'Tamil Nadu', hz:d.hz, note:d.note, months:d.months, lat:d.lat, lng:d.lng}));
+  const ind = INDIA_STATES.map(d=>({key:'IN-'+d.name, region:'IN', name:d.name, state:d.state, hz:d.hz, note:d.note, months:d.months, lat:d.lat, lng:d.lng}));
+  return [...tn, ...ind];
+}
+const OUTLOOK_DATA = buildOutlookData();
+
+/* ============================= Build FULL sensor mesh from all TN districts + India hotspots ============================= */
+// Hazard severity weighting so the most disaster-prone locations surface first
+// in the sensor list / map, and lower-risk ones sort after them.
+const HAZARD_WEIGHT = {cyclone:4, flood:3.5, landslide:3.5, gasleak:3, forestfire:2, pollution:1.5};
+function hazardWeight(hzArr){ return Math.max(...hzArr.map(h=>HAZARD_WEIGHT[h]||1)) + (hzArr.length-1)*0.6; }
+function nodeTypeFromHazards(hzArr){
+  if(hzArr.includes('cyclone')) return 'coastal';
+  if(hzArr.includes('landslide') || hzArr.includes('forestfire')) return 'hill';
+  return 'plains';
+}
+function buildSensorNodes(){
+  // TN districts first (all 38), sorted worst-hazard-first; then India hotspot states, sorted the same way.
+  const tnNodes = OUTLOOK_DATA.filter(d=>d.region==='TN');
+  const inNodes = OUTLOOK_DATA.filter(d=>d.region==='IN');
+  const sortFn = (a,b)=> hazardWeight(b.hz)-hazardWeight(a.hz);
+  tnNodes.sort(sortFn); inNodes.sort(sortFn);
+  return [...tnNodes, ...inNodes].map(d=>{
+    const type = nodeTypeFromHazards(d.hz);
+    const b = baseline(type);
+    // approximate population coverage per node — used for impact-estimate panels
+    const population = d.region==='TN' ? Math.round(400000 + Math.random()*1600000) : Math.round(20000 + Math.random()*180000);
+    return {
+      id:d.key, name:d.name, state:d.state, type, lat:d.lat, lng:d.lng, note:d.note, hz:d.hz, population,
+      ...b, risk:0, threat:'safe', history:[], anomalyScore:8, packetRate:14, packetLoss:0.4,
+      battSaverOn:false, offline:false, injectTicks:0, injectType:null, lastAlertThreat:'safe'
+    };
+  });
+}
+nodes = buildSensorNodes();
+selectedNodeId = nodes[0].id;
+
+function seasonStatus(entry, curMonth){
+  if(entry.months.includes(curMonth)) return {cls:'season-active', label:'⚠ ACTIVE SEASON — this month'};
+  const closeMonth = entry.months.some(m=>{ const diff=Math.abs(m-curMonth); return diff<=1 || diff>=11; });
+  if(closeMonth) return {cls:'season-watch', label:'◐ APPROACHING SEASON — next 4–6 weeks'};
+  return {cls:'season-off', label:'✓ OFF-SEASON — historical baseline only'};
+}
+
+function renderOutlookBanner(){
+  const now = new Date();
+  const monthName = now.toLocaleString('en-IN',{month:'long'});
+  const pill = document.getElementById('outlookMonthPill');
+  pill.textContent = `${monthName} ${now.getFullYear()}`;
+  const activeCount = OUTLOOK_DATA.filter(d=>d.months.includes(now.getMonth()+1)).length;
+  document.getElementById('outlookBanner').innerHTML =
+    `📅 It's currently <b>${monthName}</b> — <b>${activeCount}</b> of ${OUTLOOK_DATA.length} tracked districts/regions are in their historically active hazard window right now. Cards marked <span style="color:var(--critical);font-weight:700;">ACTIVE SEASON</span> are where 2024–25 records show the highest recurrence chance this month — treat their safety checklist as a priority.`;
+}
+
+function renderOutlookGrid(){
+  const curMonth = new Date().getMonth()+1;
+  const q = (document.getElementById('outlookSearch').value||'').toLowerCase();
+  const grid = document.getElementById('outlookGrid');
+  const filtered = OUTLOOK_DATA.filter(d=>{
+    if(outlookRegionFilter!=='ALL' && d.region!==outlookRegionFilter) return false;
+    if(outlookHazardFilter!=='ALL' && !d.hz.includes(outlookHazardFilter)) return false;
+    if(q && !(d.name.toLowerCase().includes(q) || d.state.toLowerCase().includes(q) || d.hz.some(h=>HAZ_LABEL[h].toLowerCase().includes(q)))) return false;
+    return true;
+  });
+  if(!filtered.length){ grid.innerHTML = '<div class="outlook-empty">No district/state matches that search.</div>'; return; }
+  grid.innerHTML = filtered.map(d=>{
+    const s = seasonStatus(d, curMonth);
+    const tags = d.hz.map(h=>`<span class="hazard-tag htag-${h}">${HAZ_LABEL[h]}</span>`).join('');
+    const safetyBlocks = d.hz.map(h=>`
+      <div class="hc-safety-title">${HAZ_LABEL[h].toUpperCase()} — BE READY</div>
+      <ul>${SAFETY_TIPS[h].map(tip=>`<li>${tip}</li>`).join('')}</ul>`).join('');
+    return `<div class="hazard-card${d.key===expandedCardKey?' expanded':''}" data-key="${d.key}">
+      <div class="hc-top">
+        <div><div class="hc-name">${d.name}</div><div class="hc-state">${d.state}</div></div>
+      </div>
+      <div class="hc-tags">${tags}</div>
+      <div class="hc-note">${d.note}</div>
+      <div class="hc-season-row">
+        <span class="season-badge ${s.cls}">${s.label}</span>
+      </div>
+      <div class="hc-safety">${safetyBlocks}</div>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('.hazard-card').forEach(card=>{
+    card.onclick = ()=>{
+      const key = card.getAttribute('data-key');
+      expandedCardKey = (expandedCardKey===key) ? null : key;
+      renderOutlookGrid();
+    };
+  });
+}
+document.getElementById('outlookSearch').addEventListener('input', renderOutlookGrid);
+document.getElementById('outlookRegionTabs').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  outlookRegionFilter = btn.getAttribute('data-region');
+  document.querySelectorAll('#outlookRegionTabs button').forEach(b=>b.classList.toggle('active', b===btn));
+  renderOutlookGrid();
+});
+document.getElementById('outlookHazardTabs').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  outlookHazardFilter = btn.getAttribute('data-hazard');
+  document.querySelectorAll('#outlookHazardTabs button').forEach(b=>b.classList.toggle('active', b===btn));
+  renderOutlookGrid();
+});
+renderOutlookBanner();
+renderOutlookGrid();
+
+/* ============================= Init ============================= */
+initMap();
+initMeshTopology();
+initCharts();
+initForecastChart();
+renderNodeList();
+renderStatusGrid();
+renderRescueList();
+renderEvac();
+renderMeshHealth();
+runBootSequence();
+// seed a little history so charts aren't empty on load
+for(let i=0;i<20;i++){ tick(); }
+addLog('INFO','MEGHDRISHTI mesh network initialized — 8 nodes online across 7 states');
+restartTicker();
+setInterval(pulseMeshTopology, 300);
+
+/* ================================================================
+   v3.6 MODULES — view switcher · refined badges · animated map FX
+   · dynamic AI rescue priority queue · Emergency Mobile Mode (OLED)
+   All additive: nothing above is removed or altered.
+   ================================================================ */
+(function(){
+
+/* ---------- shared helpers ---------- */
+const THREAT_ORDER = {safe:0, watch:1, warning:2, critical:3};
+function badgeHtml(threat, text){
+  return `<span class="status-badge sb-${threat}"><span class="bdot"></span>${text||threat.toUpperCase()}</span>`;
+}
+function sensorSeverity(n){
+  // 0..1 — how far each live sensor sits past its user-set simulator threshold
+  const soilT = +document.getElementById('soilThresh').value;
+  const vibT  = +document.getElementById('vibThresh').value;
+  const rainT = +document.getElementById('rainThresh').value;
+  const s = clamp((n.soil - soilT) / Math.max(soilT,1), 0, 1);
+  const v = clamp((n.vib  - vibT ) / Math.max(vibT ,1), 0, 1);
+  const r = clamp((n.rain - rainT) / Math.max(rainT,1), 0, 1);
+  return {s, v, r, max: Math.max(s,v,r), breaches: (s>0?1:0)+(v>0?1:0)+(r>0?1:0)};
+}
+function popFactor(n){ return clamp(Math.log10(Math.max(n.population,1))/6.3, 0, 1); }
+function hzWeight(n){ try { return hazardWeight(n.hz||[]); } catch(e){ return 2; } }
+function priorityScore(n){
+  const sev = sensorSeverity(n);
+  return Math.round(
+    n.risk * 0.55 +
+    sev.max * 100 * 0.18 +
+    sev.breaches * 5 +
+    (hzWeight(n) / 6) * 100 * 0.14 +
+    popFactor(n) * 100 * 0.13
+  );
+}
+function tierOf(n, score){
+  if(n.threat==='critical' || score>=78) return 'P1';
+  if(n.threat==='warning'  || score>=58) return 'P2';
+  return 'P3';
+}
+function rankedNodes(limit){
+  return nodes
+    .map(n=>({n, score:priorityScore(n), sev:sensorSeverity(n)}))
+    .filter(o=> o.n.threat!=='safe' || o.sev.breaches>0)
+    .sort((a,b)=> (THREAT_ORDER[b.n.threat]-THREAT_ORDER[a.n.threat]) || (b.score-a.score))
+    .slice(0, limit||6);
+}
+window.mdxRanked = rankedNodes;
+
+/* ---------- 1. Dynamic AI rescue priority queue (P1/P2/P3) ---------- */
+window.renderRescuePriorityList = function(){
+  const wrap = document.getElementById('rescuePriorityList');
+  if(!wrap) return;
+  const list = rankedNodes(6);
+  if(!list.length){
+    wrap.innerHTML = '<div class="timeline-empty">Queue empty — no node is above threshold. Raise simulator hazards or lower a threshold to populate P1–P3.</div>';
+    return;
+  }
+  const counts = {P1:0,P2:0,P3:0};
+  const rows = list.map(({n,score,sev})=>{
+    const tier = tierOf(n, score); counts[tier]++;
+    const {team, km} = nearestRescueTeam(n);
+    const etaMin = Math.max(3, Math.round((km/40)*60));
+    const pClass = tier==='P1'?'p1':tier==='P2'?'p2':'p3';
+    const drivers = [
+      sev.s>0?`soil +${Math.round(sev.s*100)}%`:null,
+      sev.v>0?`vibration +${Math.round(sev.v*100)}%`:null,
+      sev.r>0?`rain +${Math.round(sev.r*100)}%`:null
+    ].filter(Boolean).join(' · ') || 'trend-based (no threshold breach yet)';
+    return `<div class="priority-item" data-node="${n.id}" style="cursor:pointer;">
+      <div class="priority-head">
+        <span class="priority-badge ${pClass}">${tier} · SCORE ${score}</span>
+        ${badgeHtml(n.threat)}
+      </div>
+      <div><b>${n.name}</b> · ${n.state} <span style="color:var(--text-faint);">— risk ${n.risk}</span></div>
+      <div class="priority-meta"><span>👥 ${n.population.toLocaleString('en-IN')}</span><span>📍 ${Math.round(km)} km</span><span>⏱ ETA ${etaMin} min</span><span>⚠ ${sev.breaches}/3 sensors breached</span></div>
+      <div class="priority-team">DRIVERS → ${drivers}</div>
+      <div class="priority-team">OPTIMAL TEAM → ${team?team.name:'—'}</div>
+    </div>`;
+  }).join('');
+  wrap.innerHTML = `<div style="display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap;">
+      <span class="status-badge sb-critical"><span class="bdot"></span>P1 ${counts.P1}</span>
+      <span class="status-badge sb-warning"><span class="bdot"></span>P2 ${counts.P2}</span>
+      <span class="status-badge sb-watch"><span class="bdot"></span>P3 ${counts.P3}</span>
+    </div>` + rows;
+  wrap.querySelectorAll('.priority-item').forEach(el=>{
+    el.onclick = ()=>{ selectedNodeId = el.getAttribute('data-node'); renderNodeList(); refreshSelectedPanels(); updateMap(); };
+  });
+};
+
+/* ---------- 2. Header view switcher: Analyst/Simulation vs Command Center ---------- */
+const ANALYST_IDS = ['speedSlider','waveformChart','comparativeChart','statusGrid','gaugeGrid',
+  'forecastChart','fusionTable','whatifGrid','reasoningWrap','meshRSSI','edgeStatusGrid','falseAlarmBody'];
+function tagAnalystPanels(){
+  ANALYST_IDS.forEach(id=>{
+    const el = document.getElementById(id);
+    const panel = el && el.closest('.panel');
+    if(panel) panel.classList.add('analyst-only');
+  });
+}
+function setView(mode){
+  document.body.classList.toggle('mode-command', mode==='command');
+  document.querySelectorAll('#viewSwitch button').forEach(b=>b.classList.toggle('active', b.dataset.view===mode));
+  const pill = document.getElementById('viewModePill');
+  if(pill) pill.textContent = mode==='command' ? 'COMMAND CENTER VIEW' : 'ANALYST / SIMULATION VIEW';
+  try{ addLog('INFO', mode==='command' ? 'Switched to Command Center view — analytics panels collapsed' : 'Switched to Analyst / Simulation view — full telemetry visible'); }catch(e){}
+  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 220);
+}
+tagAnalystPanels();
+document.getElementById('viewSwitch').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return; setView(b.dataset.view);
+});
+setView('analyst');
+
+/* ---------- 3. Animated Leaflet markers + risk-zone overlays ---------- */
+const pulseMarkers = {}, riskZones = {};
+function pulseIcon(n){
+  const col = THREAT_COLOR[n.threat];
+  const cls = n.threat==='critical' ? 'fast' : (n.threat==='safe' ? 'calm' : '');
+  return L.divIcon({className:'', iconSize:[18,18], iconAnchor:[9,9],
+    html:`<div class="mdx-pulse ${cls}" style="color:${col}"><b></b><i></i></div>`});
+}
+function initMapFx(){
+  nodes.forEach(n=>{
+    pulseMarkers[n.id] = L.marker([n.lat,n.lng], {icon:pulseIcon(n), interactive:false, zIndexOffset:-100}).addTo(map);
+    riskZones[n.id] = L.circle([n.lat,n.lng], {
+      radius: 12000, className:'mdx-riskzone', color:THREAT_COLOR[n.threat],
+      fillColor:THREAT_COLOR[n.threat], fillOpacity:0.05, weight:1, interactive:false
+    }).addTo(map);
+  });
+}
+function updateMapFx(){
+  nodes.forEach(n=>{
+    const pm = pulseMarkers[n.id]; const rz = riskZones[n.id];
+    if(!pm){ return; }
+    pm.setLatLng([n.lat,n.lng]);
+    pm.setIcon(pulseIcon(n));
+    if(rz){
+      rz.setLatLng([n.lat,n.lng]);
+      rz.setRadius(9000 + n.risk * 320);
+      rz.setStyle({color:THREAT_COLOR[n.threat], fillColor:THREAT_COLOR[n.threat],
+        fillOpacity: n.threat==='critical'?0.20: n.threat==='warning'?0.13: n.threat==='watch'?0.07:0.03,
+        weight: n.threat==='critical'?2:1});
+    }
+  });
+}
+const _origUpdateMap = updateMap;
+updateMap = function(){ _origUpdateMap.apply(this, arguments); try{ updateMapFx(); }catch(e){} };
+initMapFx(); updateMapFx();
+
+/* ---------- 4. Emergency Mobile Mode (OLED) ---------- */
+const EMG = {
+  open:false, timer:null, sos:false, lang:'en',
+  el:(id)=>document.getElementById(id)
+};
+function emgStates(){ return [...new Set(nodes.map(n=>n.state))].sort(); }
+function emgNode(){
+  return nodes.find(n=>n.id === EMG.el('emgDistrictSel').value) || getSelectedNode();
+}
+function buildEmgSelects(keepState){
+  const stSel = EMG.el('emgStateSel'), dSel = EMG.el('emgDistrictSel');
+  const cur = getSelectedNode();
+  const state = keepState || stSel.value || cur.state;
+  stSel.innerHTML = emgStates().map(s=>`<option value="${s}" ${s===state?'selected':''}>${s}</option>`).join('');
+  const inState = nodes.filter(n=>n.state===stSel.value);
+  const wanted = inState.some(n=>n.id===cur.id) ? cur.id : (inState[0] && inState[0].id);
+  dSel.innerHTML = inState.map(n=>`<option value="${n.id}" ${n.id===wanted?'selected':''}>${n.name}</option>`).join('');
+}
+function emgSteps(n){
+  const crit = n.threat==='critical';
+  const byType = {
+    hill:[['1','Move upslope-away: leave any structure below a cut slope or debris path now.'],
+          ['2','Do not cross flowing debris, cracked ground or the Ghat road until cleared.'],
+          ['3','Head to the block office / school relief camp on stable ground.']],
+    plains:[['1','Move to the highest floor or nearest raised shelter immediately.'],
+            ['2','Never walk or drive through moving flood water.'],
+            ['3','Shift livestock, grain and documents up; keep phone charged.']],
+    coast:[['1','Move inland, away from low-lying coastal colonies and creeks.'],
+           ['2','No boat should leave harbour; secure nets and loose roofing.'],
+           ['3','Report to the designated cyclone shelter before wind picks up.']]
+  };
+  const steps = byType[n.type] || byType.plains;
+  const head = crit ? 'EVACUATE NOW' : n.threat==='warning' ? 'PREPARE TO EVACUATE' : 'STAY ALERT — no evacuation ordered';
+  return {head, steps};
+}
+function emgTamil(n, head){
+  const map = {'EVACUATE NOW':'உடனே வெளியேறுங்கள்','PREPARE TO EVACUATE':'வெளியேற தயாராகுங்கள்','STAY ALERT — no evacuation ordered':'விழிப்புடன் இருங்கள்; வெளியேற்ற உத்தரவு இல்லை'};
+  const tips = {
+    hill:'சரிவுகளிலிருந்தும் ஆற்றங்கரையிலிருந்தும் விலகிச் செல்லுங்கள். மலைப்பாதையில் பயணிக்க வேண்டாம். அருகிலுள்ள நிவாரண முகாமை அடையுங்கள்.',
+    plains:'உயரமான இடத்திற்கு உடனே செல்லுங்கள். வெள்ள நீரில் நடக்கவோ வாகனம் ஓட்டவோ வேண்டாம். முக்கிய ஆவணங்களை மேல் தளத்தில் வையுங்கள்.',
+    coast:'கடற்கரையை விட்டு உள்நாட்டுப் பகுதிக்கு செல்லுங்கள். மீனவர்கள் கடலுக்குச் செல்ல வேண்டாம். புயல் தங்குமிடத்தை அடையுங்கள்.'
+  };
+  return `${n.name}, ${n.state}. ஆபத்து மதிப்பெண் ${n.risk}. ${map[head]||head}. ${tips[n.type]||tips.plains} அவசர உதவிக்கு 112 என்ற எண்ணை அழையுங்கள்.`;
+}
+function emgSpeak(lang){
+  if(!('speechSynthesis' in window)){ toast('Speech synthesis not supported in this browser'); return; }
+  const n = emgNode(); const {head} = emgSteps(n);
+  const text = lang==='ta' ? emgTamil(n, head)
+    : `Emergency guidance for ${n.name}, ${n.state}. Threat level ${n.threat}. Risk score ${n.risk}. ${head}. ${emgSteps(n).steps.map(s=>s[1]).join(' ')} For emergency help dial one one two.`;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang==='ta' ? 'ta-IN' : 'en-IN'; u.rate = 0.95;
+  window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+  try{ addLog('INFO', `Emergency voice guidance played (${lang==='ta'?'Tamil':'English'}) for ${n.name}`); }catch(e){}
+}
+function renderEmergency(){
+  if(!EMG.open) return;
+  const n = emgNode();
+  EMG.el('emgClock').textContent = nowStr();
+  EMG.el('emgRisk').textContent = n.risk;
+  EMG.el('emgRisk').style.color = THREAT_COLOR[n.threat];
+  EMG.el('emgThreat').textContent = `${n.threat.toUpperCase()} · ${n.hz? n.hz.join(' / ') : n.type}`;
+  EMG.el('emgLoc').textContent = `${n.name}, ${n.state}`;
+  const badge = EMG.el('emgBadge');
+  badge.className = 'status-badge sb-'+n.threat;
+  EMG.el('emgBadgeTxt').textContent = n.threat.toUpperCase();
+  const {head, steps} = emgSteps(n);
+  EMG.el('emgSteps').innerHTML = `<div class="emg-step" style="color:${THREAT_COLOR[n.threat]};font-weight:700;"><i>▶</i><div>${head}</div></div>` +
+    steps.map(s=>`<div class="emg-step"><i>${s[0]}</i><div>${s[1]}</div></div>`).join('');
+  const {team, km} = nearestRescueTeam(n);
+  const eta = Math.max(3, Math.round((km/40)*60));
+  EMG.el('emgRoute').innerHTML = team
+    ? `<b>${team.name}</b> — ${Math.round(km)} km away · ETA ~${eta} min · status ${team.status}<br>Assembly point: nearest ${n.type==='coast'?'cyclone shelter':n.type==='hill'?'block office on stable ground':'raised school building'} to ${n.name}.<br>Node coverage population: ${n.population.toLocaleString('en-IN')}`
+    : 'No rescue team resolved for this node.';
+  const maps = EMG.el('emgMapsBtn');
+  maps.href = team ? `https://www.google.com/maps/dir/${n.lat},${n.lng}/${team.lat},${team.lng}` : `https://www.google.com/maps/search/?api=1&query=${n.lat},${n.lng}`;
+  const q = rankedNodes(4);
+  EMG.el('emgQueue').innerHTML = q.length ? q.map(({n:m,score})=>{
+    const tier = tierOf(m, score);
+    return `<div class="emg-step"><i>${tier}</i><div>${m.name}, ${m.state} — risk ${m.risk} · score ${score} · 👥 ${m.population.toLocaleString('en-IN')}</div></div>`;
+  }).join('') : '<div class="emg-step"><div>No node above threshold right now.</div></div>';
+}
+function openEmergency(){
+  EMG.open = true;
+  buildEmgSelects();
+  document.getElementById('emergencyOverlay').classList.add('open');
+  document.getElementById('emergencyBtn').classList.add('armed');
+  document.body.style.overflow = 'hidden';
+  renderEmergency();
+  EMG.timer = setInterval(renderEmergency, 1000);
+  try{ addLog('WARNING','Emergency Mobile Mode activated — OLED field interface engaged'); }catch(e){}
+}
+function closeEmergency(){
+  EMG.open = false;
+  document.getElementById('emergencyOverlay').classList.remove('open');
+  document.getElementById('emergencyBtn').classList.remove('armed');
+  document.body.style.overflow = '';
+  clearInterval(EMG.timer); EMG.timer = null;
+  try{ window.speechSynthesis.cancel(); }catch(e){}
+  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 200);
+}
+document.getElementById('emergencyBtn').onclick = ()=> EMG.open ? closeEmergency() : openEmergency();
+document.getElementById('emgClose').onclick = closeEmergency;
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && EMG.open) closeEmergency(); });
+document.getElementById('emgStateSel').onchange = ()=>{ buildEmgSelects(document.getElementById('emgStateSel').value); syncSelection(); };
+document.getElementById('emgDistrictSel').onchange = syncSelection;
+function syncSelection(){
+  const id = document.getElementById('emgDistrictSel').value;
+  if(id && nodes.some(n=>n.id===id)){
+    selectedNodeId = id;
+    renderNodeList(); refreshSelectedPanels(); updateMap();
+  }
+  renderEmergency();
+}
+document.getElementById('emgSpeakEN').onclick = ()=>emgSpeak('en');
+document.getElementById('emgSpeakTA').onclick = ()=>emgSpeak('ta');
+document.getElementById('emgStopVoice').onclick = ()=>{ try{ window.speechSynthesis.cancel(); }catch(e){} };
+document.getElementById('emgLangBtn').onclick = ()=>{
+  EMG.lang = EMG.lang==='en' ? 'ta' : 'en';
+  currentLang = EMG.lang; applyI18n(); setLangBtn(); renderEmergency();
+  emgSpeak(EMG.lang);
+};
+document.getElementById('emgSiren').onclick = ()=>{ try{ ensureAudio(); playSiren(); toast('Local siren triggered'); }catch(e){} };
+document.getElementById('emgShareBtn').onclick = async ()=>{
+  const n = emgNode();
+  const txt = `MEGHDRISHTI EMERGENCY — ${n.name}, ${n.state}. Threat ${n.threat.toUpperCase()}, risk ${n.risk}. Location: https://www.google.com/maps?q=${n.lat},${n.lng}`;
+  try{
+    if(navigator.share){ await navigator.share({title:'MEGHDRISHTI Emergency', text:txt}); }
+    else { await navigator.clipboard.writeText(txt); toast('Location message copied to clipboard'); }
+  }catch(e){ toast('Share cancelled'); }
+};
+document.getElementById('emgSOS').onclick = function(){
+  const n = emgNode();
+  EMG.sos = !EMG.sos;
+  this.classList.toggle('active', EMG.sos);
+  const log = document.getElementById('emgSosLog');
+  if(EMG.sos){
+    this.textContent = 'SOS ACTIVE — TAP TO CANCEL';
+    const {team, km} = nearestRescueTeam(n);
+    log.textContent = `✔ SOS broadcast over LoRa mesh · ${nowStr()}\n✔ District control room 1077 notified\n✔ ${team?team.name:'Nearest team'} alerted (${Math.round(km)} km)\n✔ Beacon relaying every 30s until cancelled`;
+    try{ ensureAudio(); playSiren(); }catch(e){}
+    try{ addLog('CRITICAL', `SOS RAISED from ${n.name}, ${n.state} — risk ${n.risk}, mesh beacon active`); }catch(e){}
+    try{ toast('🚨 SOS broadcast sent', true); }catch(e){}
+    emgSpeak(currentLang==='ta'?'ta':'en');
+  } else {
+    this.textContent = 'SOS';
+    log.textContent = `SOS cancelled at ${nowStr()} — beacon stopped.`;
+    try{ addLog('INFO', `SOS cancelled for ${n.name}`); }catch(e){}
+  }
+};
+
+/* ---------- 5. Keep everything in sync each tick ---------- */
+setInterval(()=>{ try{ updateMapFx(); }catch(e){} if(EMG.open) renderEmergency(); }, 1200);
+try{ renderRescuePriorityList(); }catch(e){}
+
+})();
+
+</script>
+
+<!-- v3.7: Government Mode logic — reuses live `nodes`, THREAT_COLOR, addLog, toast, logEntries etc. from the script above -->
+<script>
+(function(){
+  function govKpiHtml(list){
+    return list.map(([ic,k,v])=>`<div class="gov-kpi"><div style="font-size:17px;">${ic||''}</div><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+  }
+  function govBattPct(n){ return clamp(((n.batt-9.5)/(13.2-9.5))*100,0,100); }
+  function govSeverity(threat){ return {critical:'CRITICAL', warning:'HIGH', watch:'MODERATE', safe:'ADVISORY'}[threat] || 'ADVISORY'; }
+
+  function renderGovNat(){
+    const total = nodes.length || 1;
+    const online = nodes.filter(n=>!n.offline).length;
+    const critical = nodes.filter(n=>n.threat==='critical').length;
+    const warning = nodes.filter(n=>n.threat==='warning').length;
+    const avgTemp = (nodes.reduce((s,n)=>s+n.temp,0)/total).toFixed(1);
+    const avgRain = (nodes.reduce((s,n)=>s+n.rain,0)/total).toFixed(0);
+    const avgAqi = Math.round(nodes.reduce((s,n)=>s+n.gas,0)/total * 3.1);
+    const floodRisk = nodes.filter(n=>(n.hz||[]).includes('flood')).length;
+    const fireRisk = nodes.filter(n=>(n.hz||[]).includes('forestfire')).length;
+    const slideRisk = nodes.filter(n=>(n.hz||[]).includes('landslide')).length;
+    document.getElementById('govKpiGrid').innerHTML = govKpiHtml([
+      ['🟢','System Status','OPERATIONAL'],
+      ['📡','Active Sensors', total],
+      ['🚨','Active Alerts', critical+warning],
+      ['🗺️','High-Risk Zones', critical],
+      ['🌡️','Avg Temperature', avgTemp+'°C'],
+      ['💧','Avg Rainfall', avgRain+'mm/h'],
+      ['🌫️','Composite AQI', avgAqi],
+      ['🌊','Flood-watch Nodes', floodRisk],
+      ['🔥','Fire-watch Nodes', fireRisk],
+      ['⛰️','Landslide-watch Nodes', slideRisk],
+      ['📴','Offline Nodes', total-online],
+    ]);
+  }
+
+  function renderGovAlerts(){
+    const active = nodes.filter(n=>n.threat!=='safe').sort((a,b)=>b.risk-a.risk);
+    const HZ_ICON = {landslide:'⛰️',flood:'🌊',forestfire:'🔥',cyclone:'🌀',gasleak:'🧪',pollution:'🌫️'};
+    const rows = active.length ? active.map(n=>{
+      const hzKey = (n.hz&&n.hz[0]) || null;
+      const hzLabel = hzKey ? HAZ_LABEL[hzKey] : (n.type==='hill'?'Landslide':n.type==='coastal'?'Cyclone':'Flood');
+      const sevClass = n.threat==='critical'?'sb-critical':n.threat==='warning'?'sb-warning':'sb-watch';
+      return `<tr>
+        <td>${HZ_ICON[hzKey]||'⚠️'} ${hzLabel}</td>
+        <td><b>${n.name}</b><br><span style="color:var(--text-faint);font-size:10.5px">${n.state}</span></td>
+        <td><span class="status-badge ${sevClass}"><span class="bdot"></span>${govSeverity(n.threat)}</span></td>
+        <td style="font-family:var(--mono);">${nowStr()}</td>
+        <td>${n.threat==='critical'?'ACTIVE':'MONITORING'}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text-faint);padding:20px;">No active alerts — all monitored nodes within safe range.</td></tr>`;
+    document.getElementById('govAlertBody').innerHTML = rows;
+  }
+
+  function renderGovSensors(){
+    const total = nodes.length, online = nodes.filter(n=>!n.offline).length;
+    const critical = nodes.filter(n=>n.threat==='critical').length;
+    const warning = nodes.filter(n=>n.threat==='warning').length;
+    document.getElementById('govSensorKpi').innerHTML = govKpiHtml([
+      ['','TOTAL NODES', total], ['','ONLINE', online], ['','OFFLINE', total-online],
+      ['','WARNING', warning], ['','CRITICAL', critical]
+    ]);
+    const list = [...nodes].sort((a,b)=>b.risk-a.risk).slice(0,30);
+    document.getElementById('govSensorList').innerHTML = list.map(n=>{
+      const pm25 = Math.round(n.gas*2.6);
+      return `<div class="node-item" style="cursor:default;">
+        <span class="pip" style="background:${THREAT_COLOR[n.threat]}"></span>
+        <div class="info">
+          <div class="name">${n.id.toUpperCase()} · ${n.name}${n.offline?' 📴':''}</div>
+          <div class="meta">🌡️ ${n.temp.toFixed(1)}°C · 💧 ${n.soil.toFixed(0)}% · PM2.5 ${pm25}µg/m³ · 🔋 ${govBattPct(n).toFixed(0)}% · 📶 ${n.rssi}dBm · ${n.offline?'last cached':'updated just now'}</div>
+        </div>
+        <div class="risk" style="color:${THREAT_COLOR[n.threat]}">${n.risk}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderGovHealth(){
+    const flags = [];
+    nodes.forEach(n=>{
+      const battPct = govBattPct(n);
+      if(n.offline) flags.push({n, msg:'Sensor offline — no live telemetry, showing last cached reading'});
+      else if(battPct<55) flags.push({n, msg:`Battery low (${battPct.toFixed(0)}%) — schedule field replacement`});
+      else if(n.packetLoss>1.1) flags.push({n, msg:`Communication instability — packet loss ${n.packetLoss.toFixed(1)}%`});
+      else if(n.anomalyScore>50) flags.push({n, msg:'Possible sensor malfunction / drift detected — calibration recommended'});
+    });
+    document.getElementById('govHealthList').innerHTML = flags.length
+      ? flags.map(f=>`<div class="gov-health-item"><span>🔴 <b>${f.n.id.toUpperCase()}</b> — ${f.n.name}, ${f.n.state}</span><span style="color:var(--text-dim);font-size:10.5px;">${f.msg}</span></div>`).join('')
+      : `<div class="gov-health-ok">✅ All ${nodes.length} sensor nodes reporting healthy telemetry — no malfunction, drift, or connectivity issues detected right now.</div>`;
+  }
+
+  const GOV_DEPTS = [
+    {id:'collector', ico:'🏛️', name:'District Collector', sub:'Overall risk', filter:n=>true},
+    {id:'disaster', ico:'🚨', name:'Disaster Management', sub:'Alerts + response', filter:n=>n.threat!=='safe'},
+    {id:'pollution', ico:'🌫️', name:'Pollution Control', sub:'AQI + emission', filter:n=>(n.hz||[]).includes('pollution')||n.gas>25},
+    {id:'water', ico:'💧', name:'Water Resources', sub:'River/reservoir/flood', filter:n=>(n.hz||[]).includes('flood')},
+    {id:'forest', ico:'🌳', name:'Forest Department', sub:'Fire + forest risk', filter:n=>(n.hz||[]).includes('forestfire')},
+    {id:'municipality', ico:'🏙️', name:'Municipality', sub:'Flood + waste + pollution', filter:n=>(n.hz||[]).includes('flood')||(n.hz||[]).includes('pollution')},
+    {id:'public', ico:'👥', name:'Public', sub:'Alerts + safety instructions', filter:n=>n.threat!=='safe'},
+  ];
+  let govDeptActive = 'collector';
+  function renderGovDept(){
+    document.getElementById('govDeptGrid').innerHTML = GOV_DEPTS.map(d=>
+      `<div class="gov-dept-card ${d.id===govDeptActive?'active':''}" data-dept="${d.id}"><div class="ico">${d.ico}</div><div class="name">${d.name}</div><div class="sub">${d.sub}</div></div>`
+    ).join('');
+    document.querySelectorAll('#govDeptGrid [data-dept]').forEach(el=>{
+      el.onclick = ()=>{ govDeptActive = el.dataset.dept; renderGovDept(); };
+    });
+    const dept = GOV_DEPTS.find(d=>d.id===govDeptActive);
+    const matched = nodes.filter(dept.filter).sort((a,b)=>b.risk-a.risk).slice(0,8);
+    document.getElementById('govDeptDetail').innerHTML = `<div class="section-sub">${dept.name.toUpperCase()} — RELEVANT NODES (${matched.length})</div>` +
+      (matched.length ? matched.map(n=>`<div class="rescue-team"><span>${n.name}, ${n.state}</span><span class="status" style="background:${THREAT_COLOR[n.threat]}22;color:${THREAT_COLOR[n.threat]};">${n.threat.toUpperCase()} · ${n.risk}</span></div>`).join('') : '<div style="font-size:11.5px;color:var(--text-faint);">No nodes currently match this department\'s scope.</div>');
+  }
+
+  function govStates(){ return [...new Set(nodes.map(n=>n.state))].sort(); }
+  function buildGovCitizenSelects(){
+    const stSel = document.getElementById('govCitState'), dSel = document.getElementById('govCitDistrict');
+    if(!stSel.options.length){ stSel.innerHTML = govStates().map(s=>`<option value="${s}">${s}</option>`).join(''); }
+    const inState = nodes.filter(n=>n.state===stSel.value);
+    dSel.innerHTML = inState.map(n=>`<option value="${n.id}">${n.name}</option>`).join('');
+  }
+  document.getElementById('govCitState').onchange = buildGovCitizenSelects;
+  document.querySelectorAll('.gov-channel-chip').forEach(ch=>{ ch.onclick = ()=>ch.classList.toggle('active'); });
+  document.getElementById('govCitSubscribe').onclick = ()=>{
+    const n = nodes.find(x=>x.id===document.getElementById('govCitDistrict').value) || nodes[0];
+    const radius = document.getElementById('govCitRadius').value || 10;
+    const channels = [...document.querySelectorAll('.gov-channel-chip.active')].map(c=>c.textContent);
+    document.getElementById('govCitResult').innerHTML = `✅ Subscribed for <b>${n.name}, ${n.state}</b> — hazards within <b>${radius} km</b>.<br>Channels: ${channels.join(', ')||'none selected'}.<br><span style="color:var(--watch)">SIMULATED — no real SMS/WhatsApp gateway connected in this prototype.</span>`;
+    addLog('INFO', `Citizen alert subscription registered — ${n.name} (${radius}km radius) via ${channels.length} channel(s)`);
+    toast(`📍 Citizen alert subscription saved for <b>${n.name}</b>`);
+  };
+
+  function renderGovAnalytics(){
+    const total = nodes.length || 1;
+    const uptime = (nodes.filter(n=>!n.offline).length/total*100).toFixed(1);
+    const critLogs = logEntries.filter(l=>l.level==='CRITICAL').length;
+    const warnLogs = logEntries.filter(l=>l.level==='WARN').length;
+    document.getElementById('govAnalyticsKpi').innerHTML = govKpiHtml([
+      ['','Sensor Uptime', uptime+'%'],
+      ['','Critical Events (session)', critLogs],
+      ['','Warning Events (session)', warnLogs],
+      ['','Avg Simulated Response Time', '4.2 min'],
+      ['','Lives-Protected Est. (session)', livesProtectedCounter.toLocaleString('en-IN')],
+    ]);
+  }
+  document.getElementById('govGenReport').onclick = ()=>{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const worst = [...nodes].sort((a,b)=>b.risk-a.risk)[0];
+    doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.text('MEGHDRISHTI', 14, 16);
+    doc.setFontSize(12); doc.text('District Environmental & Disaster Situation Report', 14, 23);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text(`Generated: ${new Date().toLocaleString('en-IN')} · Status: SIMULATED DEMO DATA`, 14, 29);
+    let y = 40;
+    doc.setFont('helvetica','bold'); doc.text('Executive summary', 14, y); y+=6;
+    doc.setFont('helvetica','normal');
+    const critical = nodes.filter(n=>n.threat==='critical').length, warning = nodes.filter(n=>n.threat==='warning').length;
+    [`Highest-risk node: ${worst.name}, ${worst.state} — risk ${worst.risk} (${worst.threat.toUpperCase()})`,
+     `Network-wide: ${critical} node(s) CRITICAL, ${warning} node(s) WARNING, ${nodes.length} total sensors.`,
+     `Sensor uptime: ${(nodes.filter(n=>!n.offline).length/nodes.length*100).toFixed(1)}%.`
+    ].forEach(line=>{ doc.text(line, 14, y); y+=6; });
+    y+=4; doc.setFont('helvetica','bold'); doc.text('Active alerts / affected locations', 14, y); y+=6; doc.setFont('helvetica','normal');
+    nodes.filter(n=>n.threat!=='safe').sort((a,b)=>b.risk-a.risk).slice(0,15).forEach(n=>{
+      doc.text(`${n.name}, ${n.state} — ${n.threat.toUpperCase()} (risk ${n.risk})`, 14, y); y+=5.5;
+      if(y>270){ doc.addPage(); y=20; }
+    });
+    y+=4; doc.setFont('helvetica','bold'); doc.text('AI prediction & recommended action', 14, y); y+=6; doc.setFont('helvetica','normal');
+    const rec = worst.threat==='critical' ? `Evacuate zone around ${worst.name} immediately.` :
+      worst.threat==='warning' ? `Prepare evacuation readiness for ${worst.name}.` : `Continue monitoring — no evacuation action needed at this time.`;
+    doc.text(rec, 14, y); y+=8;
+    doc.setFont('helvetica','bold'); doc.text('Data sources', 14, y); y+=6; doc.setFont('helvetica','normal');
+    doc.text('Simulated multi-sensor mesh (this prototype) · not connected to live IMD/CWC/INCOIS/DGRE/FSI feeds', 14, y);
+    doc.save(`MEGHDRISHTI_Situation_Report_${Date.now()}.pdf`);
+    addLog('INFO', 'Government situation report generated (PDF)');
+    toast('📄 Situation report downloaded');
+  };
+
+  const GOV_ROLE_ACCESS = {
+    'System Admin':'FULL ADMIN ACCESS', 'District Collector':'VIEW / CONTROL ACCESS', 'Disaster Response Officer':'VIEW / RESPOND ACCESS',
+    'Network Engineer':'VIEW / ANALYZE ACCESS', 'Field Officer':'VIEW ACCESS', 'Analyst':'VIEW / ANALYZE ACCESS', 'Public':'VIEW ACCESS (public alerts only)'
+  };
+  document.getElementById('govRoleSel').onchange = function(){
+    document.getElementById('govRoleBadge').innerHTML = `<span class="bdot"></span>${GOV_ROLE_ACCESS[this.value]}`;
+    addLog('INFO', `Role switched to ${this.value} — access level: ${GOV_ROLE_ACCESS[this.value]}`);
+  };
+  function renderGovAudit(){
+    document.getElementById('govAuditWrap').innerHTML = logEntries.slice(0,40).map(l=>
+      `<div class="log-line"><span class="log-time">${l.time}</span><span class="log-lvl lvl-${l.level}">${l.level}</span><span>${l.message}</span></div>`
+    ).join('');
+  }
+
+  function seedRand(str){ let h=0; for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))>>>0; return h; }
+  function renderGovEmergency(){
+    const n = getSelectedNode() || nodes[0];
+    const {team, km} = nearestRescueTeam(n);
+    const eta = Math.max(3, Math.round((km/40)*60));
+    const seed = seedRand(n.id);
+    const hospitalKm=(2+(seed%40)/10).toFixed(1), policeKm=(1+(seed%25)/10).toFixed(1), fireKm=(3+(seed%35)/10).toFixed(1), shelterKm=(1.5+(seed%18)/10).toFixed(1);
+    document.getElementById('govEmergencyBody').innerHTML = `
+      <div class="section-sub">SELECTED NODE: ${n.name}, ${n.state} — THREAT ${n.threat.toUpperCase()}</div>
+      <div class="rescue-team"><span>🏥 Nearest hospital</span><span>${hospitalKm} km</span></div>
+      <div class="rescue-team"><span>👮 Police station</span><span>${policeKm} km</span></div>
+      <div class="rescue-team"><span>🚒 Fire station</span><span>${fireKm} km</span></div>
+      <div class="rescue-team"><span>⛺ Emergency shelter</span><span>${shelterKm} km</span></div>
+      <div class="rescue-team"><span>🚑 ${team?team.name:'Nearest response team'}</span><span>${Math.round(km)} km · ETA ~${eta} min</span></div>
+      <div style="font-size:10.5px;color:var(--text-faint);margin-top:8px;">Distances are SIMULATED per selected node for demo purposes. Change the selected node in the SENSOR NODES panel above to update this module.</div>
+    `;
+  }
+
+  const GOV_CLIENTS = [
+    ['🏛️','Government Departments'],['🏙️','Smart Cities'],['🏭','Industries'],['🌳','Forest Departments'],
+    ['💧','Water Resources'],['🏫','Institutions'],['🏢','Municipal Corporations'],['🚨','Disaster Management'],
+    ['🌾','Agriculture'],['🏗️','Infrastructure']
+  ];
+  function renderGovClients(){
+    document.getElementById('govClientGrid').innerHTML = GOV_CLIENTS.map(([ico,name])=>
+      `<div class="gov-dept-card"><div class="ico">${ico}</div><div class="name">${name}</div><div class="sub">Dashboard preview available on request</div></div>`
+    ).join('');
+  }
+
+  function renderGovAll(){
+    renderGovNat(); renderGovAlerts(); renderGovSensors(); renderGovHealth();
+    renderGovDept(); renderGovAudit(); renderGovEmergency(); renderGovAnalytics();
+  }
+
+  document.querySelectorAll('#govTabs button').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('#govTabs button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.gov-pane').forEach(p=>p.classList.remove('active'));
+      document.getElementById('gov-'+btn.dataset.gov).classList.add('active');
+    };
+  });
+
+  buildGovCitizenSelects();
+  renderGovClients();
+
+  let govOpen = false, govInterval = null;
+  const govBtn = document.getElementById('govModeBtn'), govSection = document.getElementById('govSection');
+  govBtn.onclick = ()=>{
+    govOpen = !govOpen;
+    govSection.classList.toggle('open', govOpen);
+    govBtn.classList.toggle('active', govOpen);
+    if(govOpen){
+      renderGovAll();
+      govInterval = setInterval(renderGovAll, 2000);
+      try{ addLog('INFO','Government Mode opened'); }catch(e){}
+      setTimeout(()=>govSection.scrollIntoView({behavior:'smooth', block:'start'}), 80);
+    } else {
+      clearInterval(govInterval); govInterval = null;
+    }
+  };
+})();
+</script>
+</body>
+</html>
